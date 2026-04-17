@@ -1,8 +1,8 @@
 import express from 'express'
-import { postChatMessage } from '../controllers/chatController.js'
+import { login } from '../controllers/authController.js'
 
 const router = express.Router()
 
-router.post('/chat', postChatMessage)
+router.post('/login', login)
 
 export default router
