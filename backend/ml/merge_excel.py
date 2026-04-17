@@ -136,6 +136,11 @@ def main() -> int:
         default=os.path.join("db", "processed", "merge_excel.xlsx"),
         help="Caminho do .xlsx de saída.",
     )
+    parser.add_argument(
+        "--output-csv",
+        default=os.path.join("db", "processed", "merge_excel.csv"),
+        help="Caminho do .csv de saída com o merge.",
+    )
     args = parser.parse_args()
 
     subsidios_df, resultados_df = _load_inputs(
@@ -165,12 +170,15 @@ def main() -> int:
     with pd.ExcelWriter(args.output_file, engine="openpyxl") as writer:
         # arquivo de saída com APENAS o merge, como solicitado
         merged.to_excel(writer, sheet_name="merge_excel", index=False)
+    os.makedirs(os.path.dirname(args.output_csv) or ".", exist_ok=True)
+    merged.to_csv(args.output_csv, index=False, encoding="utf-8-sig")
 
     print(
         json.dumps(
             {
                 "status": "success",
                 "output_file": args.output_file,
+                "output_csv": args.output_csv,
                 "rows_subsidios": int(len(subsidios_df)),
                 "rows_resultados": int(len(resultados_df)),
                 "rows_unificado": int(len(merged)),
@@ -189,4 +197,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(json.dumps({"status": "error", "message": str(e)}))
         raise SystemExit(1)
-
