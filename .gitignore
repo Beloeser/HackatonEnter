@@ -33,3 +33,4 @@ yarn-error.log*
 
 # Modelos treinados (pesados; gere de novo com: python backend/ml/train_vitoria_gp.py)
 backend/ml/models/*.joblib
+backend/ml/models/**/*.joblib
