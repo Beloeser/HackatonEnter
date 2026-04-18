@@ -1,4 +1,4 @@
-﻿import styled from 'styled-components'
+import styled from 'styled-components'
 import { Clock } from 'lucide-react'
 
 const Content = styled.main`
@@ -140,14 +140,37 @@ const EmptySubtitle = styled.p`
   font-size: 14px;
 `
 
+const LoadingState = styled.div`
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 28px 24px;
+  color: #6b7280;
+  text-align: center;
+  font-size: 14px;
+`
+
+const ErrorState = styled.div`
+  border: 1px solid rgba(239, 68, 68, 0.24);
+  border-radius: 10px;
+  background: #fff5f5;
+  padding: 28px 24px;
+  color: #b91c1c;
+  text-align: center;
+  font-size: 14px;
+`
+
 export default function DocumentsPanel({
   folders,
   selectedFolder,
   documents,
   selectedDocumentId,
   onSelectDocument,
+  onOpenDocument,
   viewMode,
   totalDocuments,
+  isLoading,
+  error,
 }) {
   const activeFolder = folders.find((folder) => folder.id === selectedFolder)
   const activeDocument = documents.find((document) => document.id === selectedDocumentId)
@@ -165,7 +188,11 @@ export default function DocumentsPanel({
         <Subtitle>{subtitleText}</Subtitle>
       </PageHeader>
 
-      {documents.length === 0 ? (
+      {isLoading ? (
+        <LoadingState>Carregando processos do banco de dados...</LoadingState>
+      ) : error ? (
+        <ErrorState>{error}</ErrorState>
+      ) : documents.length === 0 ? (
         <EmptyState>
           <EmptyTitle>Nenhum processo encontrado</EmptyTitle>
           <EmptySubtitle>Ajuste os filtros para ver outros resultados.</EmptySubtitle>
@@ -181,7 +208,15 @@ export default function DocumentsPanel({
                 type="button"
                 $active={isActive}
                 $viewMode={viewMode}
-                onClick={() => onSelectDocument && onSelectDocument(doc.id)}
+                onClick={() => {
+                  if (onSelectDocument) {
+                    onSelectDocument(doc.id)
+                  }
+
+                  if (onOpenDocument) {
+                    onOpenDocument(doc.id)
+                  }
+                }}
                 aria-pressed={isActive}
               >
                 <DocumentMain $viewMode={viewMode}>

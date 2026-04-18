@@ -1,8 +1,9 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import { Clock, FileText, Folder, Sparkles, TrendingUp } from 'lucide-react'
 import { usePersistentChatHistory } from '../hooks/usePersistentChatHistory'
-import { sendChatMessage } from '../services/api'
+import { fetchCases, sendChatMessage } from '../services/api'
 import AssistantPanel from './home/components/AssistantPanel'
 import DocumentsPanel from './home/components/DocumentsPanel'
 import FoldersPanel from './home/components/FoldersPanel'
@@ -17,233 +18,6 @@ const FOLDER_DEFINITIONS = [
   { id: 4, name: 'Urgentes', icon: Sparkles },
 ]
 
-const DOCUMENT_MOCKS = [
-  {
-    id: 1,
-    folderId: 0,
-    title: 'Processo 0001234-56.2026.8.26.0100',
-    type: 'Acao Civil Publica',
-    date: '15/04/2026',
-    status: 'Em andamento',
-  },
-  {
-    id: 2,
-    folderId: 0,
-    title: 'Processo 0001388-31.2026.8.26.0100',
-    type: 'Execucao Fiscal',
-    date: '14/04/2026',
-    status: 'Audiencia marcada',
-  },
-  {
-    id: 3,
-    folderId: 0,
-    title: 'Processo 0001420-22.2026.8.26.0100',
-    type: 'Acao de Cobranca',
-    date: '14/04/2026',
-    status: 'Contestacao apresentada',
-  },
-  {
-    id: 4,
-    folderId: 0,
-    title: 'Processo 0001499-08.2026.8.26.0100',
-    type: 'Cumprimento de Sentenca',
-    date: '13/04/2026',
-    status: 'Em diligencia',
-  },
-  {
-    id: 5,
-    folderId: 0,
-    title: 'Processo 0001550-90.2026.8.26.0100',
-    type: 'Acao Monitora',
-    date: '12/04/2026',
-    status: 'Pericia designada',
-  },
-  {
-    id: 6,
-    folderId: 0,
-    title: 'Processo 0001625-64.2026.8.26.0100',
-    type: 'Acao Trabalhista',
-    date: '11/04/2026',
-    status: 'Aguardando audiencia',
-  },
-  {
-    id: 7,
-    folderId: 1,
-    title: 'Processo 0007890-12.2026.8.26.0224',
-    type: 'Recurso de Apelacao',
-    date: '14/04/2026',
-    status: 'Aguardando analise',
-  },
-  {
-    id: 8,
-    folderId: 1,
-    title: 'Processo 0007902-45.2026.8.26.0224',
-    type: 'Embargos de Declaracao',
-    date: '13/04/2026',
-    status: 'Em triagem',
-  },
-  {
-    id: 9,
-    folderId: 1,
-    title: 'Processo 0007920-61.2026.8.26.0224',
-    type: 'Agravo de Instrumento',
-    date: '13/04/2026',
-    status: 'Analise documental',
-  },
-  {
-    id: 10,
-    folderId: 1,
-    title: 'Processo 0007954-73.2026.8.26.0224',
-    type: 'Acao de Indenizacao',
-    date: '12/04/2026',
-    status: 'Revisao juridica',
-  },
-  {
-    id: 11,
-    folderId: 1,
-    title: 'Processo 0007990-82.2026.8.26.0224',
-    type: 'Mandado de Seguranca',
-    date: '11/04/2026',
-    status: 'Aguardando parecer',
-  },
-  {
-    id: 12,
-    folderId: 1,
-    title: 'Processo 0008012-04.2026.8.26.0224',
-    type: 'Acao Possessoria',
-    date: '10/04/2026',
-    status: 'Em analise tecnica',
-  },
-  {
-    id: 13,
-    folderId: 2,
-    title: 'Processo 0003456-78.2026.8.26.0587',
-    type: 'Peticao Inicial',
-    date: '12/04/2026',
-    status: 'Aguardando decisao',
-  },
-  {
-    id: 14,
-    folderId: 2,
-    title: 'Processo 0003501-30.2026.8.26.0587',
-    type: 'Acao Revisional',
-    date: '11/04/2026',
-    status: 'Concluso para sentenca',
-  },
-  {
-    id: 15,
-    folderId: 2,
-    title: 'Processo 0003588-19.2026.8.26.0587',
-    type: 'Acao de Alimentos',
-    date: '10/04/2026',
-    status: 'Aguardando despacho',
-  },
-  {
-    id: 16,
-    folderId: 2,
-    title: 'Processo 0003666-40.2026.8.26.0587',
-    type: 'Tutela de Urgencia',
-    date: '09/04/2026',
-    status: 'Aguardando conclusao',
-  },
-  {
-    id: 17,
-    folderId: 2,
-    title: 'Processo 0003720-11.2026.8.26.0587',
-    type: 'Cumprimento Provisorio',
-    date: '08/04/2026',
-    status: 'Aguardando decisao interlocutoria',
-  },
-  {
-    id: 18,
-    folderId: 2,
-    title: 'Processo 0003804-59.2026.8.26.0587',
-    type: 'Acao de Obrigacao de Fazer',
-    date: '07/04/2026',
-    status: 'Pendente de despacho final',
-  },
-  {
-    id: 19,
-    folderId: 3,
-    title: 'Processo 0009876-54.2026.8.26.0344',
-    type: 'Mandado de Seguranca',
-    date: '10/04/2026',
-    status: 'Arquivado definitivamente',
-  },
-  {
-    id: 20,
-    folderId: 3,
-    title: 'Processo 0009920-84.2026.8.26.0344',
-    type: 'Acao Declaratoria',
-    date: '09/04/2026',
-    status: 'Baixado',
-  },
-  {
-    id: 21,
-    folderId: 3,
-    title: 'Processo 0009958-27.2026.8.26.0344',
-    type: 'Execucao de Titulo',
-    date: '08/04/2026',
-    status: 'Arquivado por acordo',
-  },
-  {
-    id: 22,
-    folderId: 3,
-    title: 'Processo 0010002-71.2026.8.26.0344',
-    type: 'Acao de Reparacao',
-    date: '07/04/2026',
-    status: 'Transito em julgado',
-  },
-  {
-    id: 23,
-    folderId: 3,
-    title: 'Processo 0010044-18.2026.8.26.0344',
-    type: 'Execucao Trabalhista',
-    date: '06/04/2026',
-    status: 'Arquivo morto',
-  },
-  {
-    id: 24,
-    folderId: 3,
-    title: 'Processo 0010099-06.2026.8.26.0344',
-    type: 'Acao de Inventario',
-    date: '05/04/2026',
-    status: 'Arquivado sem baixa pendente',
-  },
-  {
-    id: 25,
-    folderId: 4,
-    title: 'Processo 0002468-13.2026.8.26.0176',
-    type: 'Acao Trabalhista',
-    date: '08/04/2026',
-    status: 'Prazo em 24h',
-  },
-  {
-    id: 26,
-    folderId: 4,
-    title: 'Processo 0002520-95.2026.8.26.0176',
-    type: 'Acao Cautelar',
-    date: '08/04/2026',
-    status: 'Risco de prescricao',
-  },
-  {
-    id: 27,
-    folderId: 4,
-    title: 'Processo 0002608-43.2026.8.26.0176',
-    type: 'Tutela Antecipada',
-    date: '07/04/2026',
-    status: 'Liminar pendente',
-  },
-  {
-    id: 28,
-    folderId: 4,
-    title: 'Processo 0002688-77.2026.8.26.0176',
-    type: 'Reintegracao de Posse',
-    date: '06/04/2026',
-    status: 'Peticao urgente para hoje',
-  },
-]
-
 const PageGrid = styled.div`
   display: grid;
   grid-template-columns: ${({ $chatOpen }) =>
@@ -255,6 +29,13 @@ const PageGrid = styled.div`
   min-height: 0;
   overflow: hidden;
   background: #f3f4f6;
+`
+
+const DashboardChatSlot = styled.div`
+  grid-column: 4;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
 `
 
 function createChatMessage(role, content) {
@@ -293,7 +74,103 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+function mapStatusToFolderId(status) {
+  const normalizedStatus = normalizeText(status)
+
+  if (
+    normalizedStatus.includes('urgente') ||
+    normalizedStatus.includes('prazo') ||
+    normalizedStatus.includes('liminar')
+  ) {
+    return 4
+  }
+
+  if (
+    normalizedStatus.includes('arquiv') ||
+    normalizedStatus.includes('baixado') ||
+    normalizedStatus.includes('transito')
+  ) {
+    return 3
+  }
+
+  if (
+    normalizedStatus.includes('aguardando') ||
+    normalizedStatus.includes('pendente') ||
+    normalizedStatus.includes('concluso') ||
+    normalizedStatus.includes('despacho')
+  ) {
+    return 2
+  }
+
+  if (
+    normalizedStatus.includes('analise') ||
+    normalizedStatus.includes('triagem') ||
+    normalizedStatus.includes('revisao')
+  ) {
+    return 1
+  }
+
+  return 0
+}
+
+function formatDateFromValue(value) {
+  if (!value) {
+    return ''
+  }
+
+  const date = value instanceof Date ? value : new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date)
+}
+
+function extractCaseList(payload) {
+  if (Array.isArray(payload)) {
+    return payload
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data
+  }
+
+  if (Array.isArray(payload?.cases)) {
+    return payload.cases
+  }
+
+  return []
+}
+
+function normalizeIncomingDocument(rawDocument, index) {
+  if (!rawDocument || typeof rawDocument !== 'object') {
+    return null
+  }
+
+  const idSource = rawDocument.id || rawDocument._id || rawDocument.processNumber || `case-${index}`
+  const id = String(idSource)
+  const status = String(rawDocument.status || 'em_analise')
+  const folderIdCandidate = Number(rawDocument.folderId)
+  const folderId = Number.isFinite(folderIdCandidate) ? folderIdCandidate : mapStatusToFolderId(status)
+
+  return {
+    id,
+    folderId,
+    title: rawDocument.title || (rawDocument.processNumber ? `Processo ${rawDocument.processNumber}` : `Processo ${id}`),
+    type: rawDocument.type || rawDocument.subject || 'Assunto nao informado',
+    date: rawDocument.date || formatDateFromValue(rawDocument.updatedAt || rawDocument.createdAt),
+    status,
+    processNumber: rawDocument.processNumber || '',
+  }
+}
+
 export default function HomeScreen() {
+  const navigate = useNavigate()
   const [selectedFolder, setSelectedFolder] = useState(0)
   const [selectedDocumentId, setSelectedDocumentId] = useState(null)
   const [viewMode, setViewMode] = useState('card')
@@ -303,9 +180,55 @@ export default function HomeScreen() {
   const [chatInput, setChatInput] = useState('')
   const [loadingContextKey, setLoadingContextKey] = useState(null)
   const [chatErrorsByContext, setChatErrorsByContext] = useState({})
+  const [documents, setDocuments] = useState([])
+  const [isCasesLoading, setIsCasesLoading] = useState(true)
+  const [casesError, setCasesError] = useState('')
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadCases = async () => {
+      setIsCasesLoading(true)
+      setCasesError('')
+
+      try {
+        const payload = await fetchCases()
+        const rawCases = extractCaseList(payload)
+        const normalizedCases = rawCases
+          .map((caseItem, index) => normalizeIncomingDocument(caseItem, index))
+          .filter(Boolean)
+
+        if (!isMounted) {
+          return
+        }
+
+        setDocuments(normalizedCases)
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        const message =
+          error?.response?.data?.message || error?.message || 'Nao foi possivel carregar os processos do backend.'
+
+        setDocuments([])
+        setCasesError(message)
+      } finally {
+        if (isMounted) {
+          setIsCasesLoading(false)
+        }
+      }
+    }
+
+    loadCases()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const foldersWithCount = useMemo(() => {
-    const countByFolder = DOCUMENT_MOCKS.reduce((accumulator, document) => {
+    const countByFolder = documents.reduce((accumulator, document) => {
       const currentCount = accumulator[document.folderId] || 0
       return {
         ...accumulator,
@@ -317,11 +240,11 @@ export default function HomeScreen() {
       ...folder,
       count: countByFolder[folder.id] || 0,
     }))
-  }, [])
+  }, [documents])
 
   const documentsForSelectedFolder = useMemo(
-    () => DOCUMENT_MOCKS.filter((document) => document.folderId === selectedFolder),
-    [selectedFolder],
+    () => documents.filter((document) => document.folderId === selectedFolder),
+    [documents, selectedFolder],
   )
 
   const filteredDocuments = useMemo(() => {
@@ -329,7 +252,7 @@ export default function HomeScreen() {
 
     return documentsForSelectedFolder.filter((document) => {
       const searchableText = normalizeText(
-        `${document.title} ${document.type} ${document.status} ${document.date}`,
+        `${document.title} ${document.type} ${document.status} ${document.date} ${document.processNumber}`,
       )
 
       return normalizedQuery.length === 0 || searchableText.includes(normalizedQuery)
@@ -337,8 +260,8 @@ export default function HomeScreen() {
   }, [documentsForSelectedFolder, searchQuery])
 
   const selectedDocument = useMemo(
-    () => DOCUMENT_MOCKS.find((document) => document.id === selectedDocumentId) || null,
-    [selectedDocumentId],
+    () => documents.find((document) => String(document.id) === String(selectedDocumentId)) || null,
+    [documents, selectedDocumentId],
   )
 
   const activeChatContext = useMemo(
@@ -365,7 +288,9 @@ export default function HomeScreen() {
       return
     }
 
-    const existsInCurrentResult = filteredDocuments.some((document) => document.id === selectedDocumentId)
+    const existsInCurrentResult = filteredDocuments.some(
+      (document) => String(document.id) === String(selectedDocumentId),
+    )
 
     if (!existsInCurrentResult) {
       setSelectedDocumentId(null)
@@ -401,7 +326,15 @@ export default function HomeScreen() {
   }
 
   const handleSelectDocument = (documentId) => {
-    setSelectedDocumentId(documentId)
+    setSelectedDocumentId(String(documentId))
+  }
+
+  const handleOpenDocument = (documentId) => {
+    if (!documentId) {
+      return
+    }
+
+    navigate(`/dashboard/process/${documentId}`)
   }
 
   const handleChatInputChange = (value) => {
@@ -467,8 +400,8 @@ export default function HomeScreen() {
 
   const chatContextDescription =
     activeChatContext.type === 'process'
-      ? `Historico do processo selecionado`
-      : `Historico da pasta selecionada`
+      ? 'Historico do processo selecionado'
+      : 'Historico da pasta selecionada'
 
   return (
     <PageGrid $chatOpen={isChatOpen}>
@@ -492,21 +425,28 @@ export default function HomeScreen() {
         documents={filteredDocuments}
         selectedDocumentId={selectedDocumentId}
         onSelectDocument={handleSelectDocument}
+        onOpenDocument={handleOpenDocument}
         viewMode={viewMode}
         totalDocuments={documentsForSelectedFolder.length}
+        isLoading={isCasesLoading}
+        error={casesError}
       />
-      <AssistantPanel
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        messages={chatMessages}
-        inputValue={chatInput}
-        onInputChange={handleChatInputChange}
-        onSendMessage={handleSendMessage}
-        isLoading={isChatLoading}
-        error={chatError}
-        contextLabel={activeChatContext.label}
-        contextDescription={chatContextDescription}
-      />
+      {isChatOpen ? (
+        <DashboardChatSlot>
+          <AssistantPanel
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+            messages={chatMessages}
+            inputValue={chatInput}
+            onInputChange={handleChatInputChange}
+            onSendMessage={handleSendMessage}
+            isLoading={isChatLoading}
+            error={chatError}
+            contextLabel={activeChatContext.label}
+            contextDescription={chatContextDescription}
+          />
+        </DashboardChatSlot>
+      ) : null}
     </PageGrid>
   )
 }

@@ -3,8 +3,6 @@ import styled from 'styled-components'
 import { Send, Sparkles, User } from 'lucide-react'
 
 const Panel = styled.aside`
-  grid-column: 4;
-  grid-row: 2;
   display: flex;
   width: 100%;
   min-width: 0;

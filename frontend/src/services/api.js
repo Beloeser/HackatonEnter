@@ -14,4 +14,14 @@ export async function sendChatMessage({ message, history = [] }) {
   return response.data
 }
 
+export async function fetchCases() {
+  const response = await api.get('/cases')
+  return response.data
+}
+
+export async function fetchCaseById(caseId) {
+  const response = await api.get(`/cases/${caseId}`)
+  return response.data
+}
+
 export default api
