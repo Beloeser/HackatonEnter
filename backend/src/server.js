@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import connectDB from './config/db.js'
 import routes from './routes/index.js'
 
 dotenv.config()
@@ -20,6 +21,14 @@ app.get('/health', (req, res) => {
 
 app.use('/api', routes)
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`)
+const startServer = async () => {
+  await connectDB()
+  app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`)
+  })
+}
+
+startServer().catch((error) => {
+  console.error('Erro ao iniciar servidor:', error)
+  process.exit(1)
 })

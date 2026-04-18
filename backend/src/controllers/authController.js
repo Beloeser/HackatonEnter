@@ -1,6 +1,6 @@
-import { findUserByUsername } from '../models/UserModel.js'
+import User from '../models/UserModel.js'
 
-export const login = (req, res) => {
+export const login = async (req, res) => {
   try {
     const { username, password } = req.body ?? {}
 
@@ -11,7 +11,8 @@ export const login = (req, res) => {
       })
     }
 
-    const user = findUserByUsername(String(username))
+    const normalizedUsername = String(username).trim()
+    const user = await User.findOne({ username: normalizedUsername })
 
     if (!user || user.password !== String(password)) {
       return res.status(401).json({
@@ -24,7 +25,7 @@ export const login = (req, res) => {
       success: true,
       message: 'Login realizado com sucesso.',
       user: {
-        id: user.id,
+        id: user._id,
         username: user.username,
         name: user.name,
         role: user.role
@@ -33,7 +34,7 @@ export const login = (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: 'Erro interno ao processar login.'
     })
   }
 }
