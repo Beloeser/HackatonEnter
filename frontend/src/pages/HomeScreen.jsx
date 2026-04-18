@@ -1,346 +1,512 @@
-import { useState } from 'react'
-import {
-  Search,
-  Filter,
-  LayoutGrid,
-  LayoutList,
-  MessageSquare,
-  Settings,
-  Folder,
-  FileText,
-  Clock,
-  TrendingUp,
-  User,
-  Sparkles,
-  Send,
-} from 'lucide-react'
+﻿import { useEffect, useMemo, useState } from 'react'
+import styled from 'styled-components'
+import { Clock, FileText, Folder, Sparkles, TrendingUp } from 'lucide-react'
+import { usePersistentChatHistory } from '../hooks/usePersistentChatHistory'
+import { sendChatMessage } from '../services/api'
+import AssistantPanel from './home/components/AssistantPanel'
+import DocumentsPanel from './home/components/DocumentsPanel'
+import FoldersPanel from './home/components/FoldersPanel'
+import HomeSidebar from './home/components/HomeSidebar'
+import HomeTopbar from './home/components/HomeTopbar'
 
-const GRID_OPEN = {
-  display: 'grid',
-  gridTemplateColumns: '76px 360px minmax(0, 1fr) 420px',
-  gridTemplateRows: '96px minmax(0, 1fr)',
-  minHeight: 0,
-  minWidth: 0,
+const FOLDER_DEFINITIONS = [
+  { id: 0, name: 'Processos Ativos', icon: Folder },
+  { id: 1, name: 'Em Analise', icon: TrendingUp },
+  { id: 2, name: 'Aguardando Decisao', icon: Clock },
+  { id: 3, name: 'Arquivados', icon: FileText },
+  { id: 4, name: 'Urgentes', icon: Sparkles },
+]
+
+const DOCUMENT_MOCKS = [
+  {
+    id: 1,
+    folderId: 0,
+    title: 'Processo 0001234-56.2026.8.26.0100',
+    type: 'Acao Civil Publica',
+    date: '15/04/2026',
+    status: 'Em andamento',
+  },
+  {
+    id: 2,
+    folderId: 0,
+    title: 'Processo 0001388-31.2026.8.26.0100',
+    type: 'Execucao Fiscal',
+    date: '14/04/2026',
+    status: 'Audiencia marcada',
+  },
+  {
+    id: 3,
+    folderId: 0,
+    title: 'Processo 0001420-22.2026.8.26.0100',
+    type: 'Acao de Cobranca',
+    date: '14/04/2026',
+    status: 'Contestacao apresentada',
+  },
+  {
+    id: 4,
+    folderId: 0,
+    title: 'Processo 0001499-08.2026.8.26.0100',
+    type: 'Cumprimento de Sentenca',
+    date: '13/04/2026',
+    status: 'Em diligencia',
+  },
+  {
+    id: 5,
+    folderId: 0,
+    title: 'Processo 0001550-90.2026.8.26.0100',
+    type: 'Acao Monitora',
+    date: '12/04/2026',
+    status: 'Pericia designada',
+  },
+  {
+    id: 6,
+    folderId: 0,
+    title: 'Processo 0001625-64.2026.8.26.0100',
+    type: 'Acao Trabalhista',
+    date: '11/04/2026',
+    status: 'Aguardando audiencia',
+  },
+  {
+    id: 7,
+    folderId: 1,
+    title: 'Processo 0007890-12.2026.8.26.0224',
+    type: 'Recurso de Apelacao',
+    date: '14/04/2026',
+    status: 'Aguardando analise',
+  },
+  {
+    id: 8,
+    folderId: 1,
+    title: 'Processo 0007902-45.2026.8.26.0224',
+    type: 'Embargos de Declaracao',
+    date: '13/04/2026',
+    status: 'Em triagem',
+  },
+  {
+    id: 9,
+    folderId: 1,
+    title: 'Processo 0007920-61.2026.8.26.0224',
+    type: 'Agravo de Instrumento',
+    date: '13/04/2026',
+    status: 'Analise documental',
+  },
+  {
+    id: 10,
+    folderId: 1,
+    title: 'Processo 0007954-73.2026.8.26.0224',
+    type: 'Acao de Indenizacao',
+    date: '12/04/2026',
+    status: 'Revisao juridica',
+  },
+  {
+    id: 11,
+    folderId: 1,
+    title: 'Processo 0007990-82.2026.8.26.0224',
+    type: 'Mandado de Seguranca',
+    date: '11/04/2026',
+    status: 'Aguardando parecer',
+  },
+  {
+    id: 12,
+    folderId: 1,
+    title: 'Processo 0008012-04.2026.8.26.0224',
+    type: 'Acao Possessoria',
+    date: '10/04/2026',
+    status: 'Em analise tecnica',
+  },
+  {
+    id: 13,
+    folderId: 2,
+    title: 'Processo 0003456-78.2026.8.26.0587',
+    type: 'Peticao Inicial',
+    date: '12/04/2026',
+    status: 'Aguardando decisao',
+  },
+  {
+    id: 14,
+    folderId: 2,
+    title: 'Processo 0003501-30.2026.8.26.0587',
+    type: 'Acao Revisional',
+    date: '11/04/2026',
+    status: 'Concluso para sentenca',
+  },
+  {
+    id: 15,
+    folderId: 2,
+    title: 'Processo 0003588-19.2026.8.26.0587',
+    type: 'Acao de Alimentos',
+    date: '10/04/2026',
+    status: 'Aguardando despacho',
+  },
+  {
+    id: 16,
+    folderId: 2,
+    title: 'Processo 0003666-40.2026.8.26.0587',
+    type: 'Tutela de Urgencia',
+    date: '09/04/2026',
+    status: 'Aguardando conclusao',
+  },
+  {
+    id: 17,
+    folderId: 2,
+    title: 'Processo 0003720-11.2026.8.26.0587',
+    type: 'Cumprimento Provisorio',
+    date: '08/04/2026',
+    status: 'Aguardando decisao interlocutoria',
+  },
+  {
+    id: 18,
+    folderId: 2,
+    title: 'Processo 0003804-59.2026.8.26.0587',
+    type: 'Acao de Obrigacao de Fazer',
+    date: '07/04/2026',
+    status: 'Pendente de despacho final',
+  },
+  {
+    id: 19,
+    folderId: 3,
+    title: 'Processo 0009876-54.2026.8.26.0344',
+    type: 'Mandado de Seguranca',
+    date: '10/04/2026',
+    status: 'Arquivado definitivamente',
+  },
+  {
+    id: 20,
+    folderId: 3,
+    title: 'Processo 0009920-84.2026.8.26.0344',
+    type: 'Acao Declaratoria',
+    date: '09/04/2026',
+    status: 'Baixado',
+  },
+  {
+    id: 21,
+    folderId: 3,
+    title: 'Processo 0009958-27.2026.8.26.0344',
+    type: 'Execucao de Titulo',
+    date: '08/04/2026',
+    status: 'Arquivado por acordo',
+  },
+  {
+    id: 22,
+    folderId: 3,
+    title: 'Processo 0010002-71.2026.8.26.0344',
+    type: 'Acao de Reparacao',
+    date: '07/04/2026',
+    status: 'Transito em julgado',
+  },
+  {
+    id: 23,
+    folderId: 3,
+    title: 'Processo 0010044-18.2026.8.26.0344',
+    type: 'Execucao Trabalhista',
+    date: '06/04/2026',
+    status: 'Arquivo morto',
+  },
+  {
+    id: 24,
+    folderId: 3,
+    title: 'Processo 0010099-06.2026.8.26.0344',
+    type: 'Acao de Inventario',
+    date: '05/04/2026',
+    status: 'Arquivado sem baixa pendente',
+  },
+  {
+    id: 25,
+    folderId: 4,
+    title: 'Processo 0002468-13.2026.8.26.0176',
+    type: 'Acao Trabalhista',
+    date: '08/04/2026',
+    status: 'Prazo em 24h',
+  },
+  {
+    id: 26,
+    folderId: 4,
+    title: 'Processo 0002520-95.2026.8.26.0176',
+    type: 'Acao Cautelar',
+    date: '08/04/2026',
+    status: 'Risco de prescricao',
+  },
+  {
+    id: 27,
+    folderId: 4,
+    title: 'Processo 0002608-43.2026.8.26.0176',
+    type: 'Tutela Antecipada',
+    date: '07/04/2026',
+    status: 'Liminar pendente',
+  },
+  {
+    id: 28,
+    folderId: 4,
+    title: 'Processo 0002688-77.2026.8.26.0176',
+    type: 'Reintegracao de Posse',
+    date: '06/04/2026',
+    status: 'Peticao urgente para hoje',
+  },
+]
+
+const PageGrid = styled.div`
+  display: grid;
+  grid-template-columns: ${({ $chatOpen }) =>
+    $chatOpen ? '76px 360px minmax(0, 1fr) minmax(340px, 420px)' : '76px 360px minmax(0, 1fr)'};
+  grid-template-rows: 96px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #f3f4f6;
+`
+
+function createChatMessage(role, content) {
+  return {
+    id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    role,
+    content,
+    createdAt: new Date().toISOString(),
+  }
 }
 
-const GRID_CLOSED = {
-  display: 'grid',
-  gridTemplateColumns: '76px 360px minmax(0, 1fr)',
-  gridTemplateRows: '96px minmax(0, 1fr)',
-  minHeight: 0,
-  minWidth: 0,
+function buildChatContext({ selectedDocument, selectedFolder, folders }) {
+  if (selectedDocument) {
+    return {
+      key: `process:${selectedDocument.id}`,
+      type: 'process',
+      id: selectedDocument.id,
+      label: selectedDocument.title,
+    }
+  }
+
+  const activeFolder = folders.find((folder) => folder.id === selectedFolder)
+
+  return {
+    key: `folder:${selectedFolder}`,
+    type: 'folder',
+    id: selectedFolder,
+    label: activeFolder?.name || `Pasta ${selectedFolder}`,
+  }
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 }
 
 export default function HomeScreen() {
   const [selectedFolder, setSelectedFolder] = useState(0)
-  const [viewMode, setViewMode] = useState('list')
+  const [selectedDocumentId, setSelectedDocumentId] = useState(null)
+  const [viewMode, setViewMode] = useState('card')
+  const [searchQuery, setSearchQuery] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(true)
-  const [sidebarActive, setSidebarActive] = useState('chat')
+  const [sidebarActive, setSidebarActive] = useState('settings')
+  const [chatInput, setChatInput] = useState('')
+  const [loadingContextKey, setLoadingContextKey] = useState(null)
+  const [chatErrorsByContext, setChatErrorsByContext] = useState({})
 
-  const folders = [
-    { id: 0, name: 'Processos Ativos', count: 24, icon: Folder },
-    { id: 1, name: 'Em Análise', count: 8, icon: TrendingUp },
-    { id: 2, name: 'Aguardando Decisão', count: 12, icon: Clock },
-    { id: 3, name: 'Arquivados', count: 156, icon: FileText },
-    { id: 4, name: 'Urgentes', count: 3, icon: Sparkles },
-  ]
+  const foldersWithCount = useMemo(() => {
+    const countByFolder = DOCUMENT_MOCKS.reduce((accumulator, document) => {
+      const currentCount = accumulator[document.folderId] || 0
+      return {
+        ...accumulator,
+        [document.folderId]: currentCount + 1,
+      }
+    }, {})
 
-  const documents = [
-    { id: 1, title: 'Processo 0001234-56.2026.8.26.0100', type: 'Ação Civil Pública', date: '15/04/2026', status: 'Em andamento' },
-    { id: 2, title: 'Processo 0007890-12.2026.8.26.0224', type: 'Recurso de Apelação', date: '14/04/2026', status: 'Aguardando análise' },
-    { id: 3, title: 'Processo 0003456-78.2026.8.26.0587', type: 'Petição Inicial', date: '12/04/2026', status: 'Protocolado' },
-    { id: 4, title: 'Processo 0009876-54.2026.8.26.0344', type: 'Mandado de Segurança', date: '10/04/2026', status: 'Em andamento' },
-    { id: 5, title: 'Processo 0002468-13.2026.8.26.0176', type: 'Ação Trabalhista', date: '08/04/2026', status: 'Audiência agendada' },
-  ]
+    return FOLDER_DEFINITIONS.map((folder) => ({
+      ...folder,
+      count: countByFolder[folder.id] || 0,
+    }))
+  }, [])
 
-  const topbarPlacement = isChatOpen
-    ? { gridColumn: '2 / 5', gridRow: '1' }
-    : { gridColumn: '2 / 4', gridRow: '1' }
+  const documentsForSelectedFolder = useMemo(
+    () => DOCUMENT_MOCKS.filter((document) => document.folderId === selectedFolder),
+    [selectedFolder],
+  )
+
+  const filteredDocuments = useMemo(() => {
+    const normalizedQuery = normalizeText(searchQuery.trim())
+
+    return documentsForSelectedFolder.filter((document) => {
+      const searchableText = normalizeText(
+        `${document.title} ${document.type} ${document.status} ${document.date}`,
+      )
+
+      return normalizedQuery.length === 0 || searchableText.includes(normalizedQuery)
+    })
+  }, [documentsForSelectedFolder, searchQuery])
+
+  const selectedDocument = useMemo(
+    () => DOCUMENT_MOCKS.find((document) => document.id === selectedDocumentId) || null,
+    [selectedDocumentId],
+  )
+
+  const activeChatContext = useMemo(
+    () => buildChatContext({ selectedDocument, selectedFolder, folders: foldersWithCount }),
+    [selectedDocument, selectedFolder, foldersWithCount],
+  )
+
+  const { messages: chatMessages, updateMessagesForContext } = usePersistentChatHistory({
+    contextKey: activeChatContext.key,
+    contextType: activeChatContext.type,
+    contextLabel: activeChatContext.label,
+  })
+
+  const chatError = chatErrorsByContext[activeChatContext.key] || ''
+  const isChatLoading = loadingContextKey === activeChatContext.key
+  const hasPendingRequest = Boolean(loadingContextKey)
+
+  useEffect(() => {
+    setChatInput('')
+  }, [activeChatContext.key])
+
+  useEffect(() => {
+    if (!selectedDocumentId) {
+      return
+    }
+
+    const existsInCurrentResult = filteredDocuments.some((document) => document.id === selectedDocumentId)
+
+    if (!existsInCurrentResult) {
+      setSelectedDocumentId(null)
+    }
+  }, [filteredDocuments, selectedDocumentId])
+
+  const setChatErrorForContext = (contextKey, value) => {
+    setChatErrorsByContext((current) => {
+      if (!value) {
+        if (!current[contextKey]) {
+          return current
+        }
+
+        const next = { ...current }
+        delete next[contextKey]
+        return next
+      }
+
+      return {
+        ...current,
+        [contextKey]: value,
+      }
+    })
+  }
+
+  const toggleChat = () => {
+    setIsChatOpen((current) => !current)
+  }
+
+  const handleSelectFolder = (folderId) => {
+    setSelectedFolder(folderId)
+    setSelectedDocumentId(null)
+  }
+
+  const handleSelectDocument = (documentId) => {
+    setSelectedDocumentId(documentId)
+  }
+
+  const handleChatInputChange = (value) => {
+    if (chatError) {
+      setChatErrorForContext(activeChatContext.key, '')
+    }
+
+    setChatInput(value)
+  }
+
+  const handleSendMessage = async () => {
+    const message = chatInput.trim()
+
+    if (!message || hasPendingRequest) {
+      return
+    }
+
+    const requestContext = {
+      key: activeChatContext.key,
+      type: activeChatContext.type,
+      label: activeChatContext.label,
+    }
+
+    const history = chatMessages.map((item) => ({
+      role: item.role,
+      content: item.content,
+    }))
+
+    updateMessagesForContext(requestContext, (currentMessages) => [
+      ...currentMessages,
+      createChatMessage('user', message),
+    ])
+
+    setChatInput('')
+    setChatErrorForContext(requestContext.key, '')
+    setLoadingContextKey(requestContext.key)
+
+    try {
+      const response = await sendChatMessage({
+        message,
+        history,
+      })
+
+      const assistantReply = typeof response?.reply === 'string' ? response.reply.trim() : ''
+
+      if (!assistantReply) {
+        throw new Error('A IA nao retornou uma resposta em texto.')
+      }
+
+      updateMessagesForContext(requestContext, (currentMessages) => [
+        ...currentMessages,
+        createChatMessage('assistant', assistantReply),
+      ])
+    } catch (error) {
+      const errorMessage =
+        error?.response?.data?.error || error?.message || 'Nao foi possivel enviar sua mensagem para a IA.'
+
+      setChatErrorForContext(requestContext.key, errorMessage)
+    } finally {
+      setLoadingContextKey((current) => (current === requestContext.key ? null : current))
+    }
+  }
+
+  const chatContextDescription =
+    activeChatContext.type === 'process'
+      ? `Historico do processo selecionado`
+      : `Historico da pasta selecionada`
 
   return (
-    <div
-      className="h-full min-h-0 w-full overflow-hidden bg-[#F3F4F6]"
-      style={isChatOpen ? GRID_OPEN : GRID_CLOSED}
-    >
-      {/* 1) Sidebar — coluna 1, altura total */}
-      <aside
-        className="flex min-h-0 w-full flex-col items-center bg-[#0B0B0B] pt-9 pb-9"
-        style={{ gridColumn: '1', gridRow: '1 / -1' }}
-      >
-        <button
-          type="button"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FFB300] text-[#111827] shadow-[0_2px_14px_rgba(255,179,0,0.38)] transition hover:brightness-105"
-          aria-label="Perfil"
-        >
-          <User className="h-5 w-5" strokeWidth={2} />
-        </button>
-
-        <nav className="flex w-full min-h-0 flex-1 flex-col items-center justify-center gap-12" aria-label="Navegação principal">
-          <button
-            type="button"
-            onClick={() => setSidebarActive('chat')}
-            className={`relative flex h-11 w-full shrink-0 items-center justify-center rounded-[10px] transition-colors ${
-              sidebarActive === 'chat'
-                ? 'text-[#FFB300]'
-                : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100'
-            }`}
-            aria-label="Mensagens"
-            aria-current={sidebarActive === 'chat' ? 'true' : undefined}
-          >
-            {sidebarActive === 'chat' && (
-              <span
-                className="pointer-events-none absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-r-sm bg-[#FFB300]"
-                aria-hidden
-              />
-            )}
-            <MessageSquare className="h-5 w-5" strokeWidth={sidebarActive === 'chat' ? 2 : 1.75} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setSidebarActive('settings')}
-            className={`relative flex h-11 w-full shrink-0 items-center justify-center rounded-[10px] transition-colors ${
-              sidebarActive === 'settings'
-                ? 'text-[#FFB300]'
-                : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100'
-            }`}
-            aria-label="Configurações"
-            aria-current={sidebarActive === 'settings' ? 'true' : undefined}
-          >
-            {sidebarActive === 'settings' && (
-              <span
-                className="pointer-events-none absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-r-sm bg-[#FFB300]"
-                aria-hidden
-              />
-            )}
-            <Settings className="h-5 w-5" strokeWidth={sidebarActive === 'settings' ? 2 : 1.75} />
-          </button>
-        </nav>
-      </aside>
-
-      {/* Topbar — colunas 2–4 (ou 2–3 sem chat) */}
-      <header
-        className="flex min-h-0 items-center justify-between gap-10 overflow-hidden border-b border-[#E5E7EB] bg-white px-8 py-0 shadow-[0_1px_0_rgba(15,23,42,0.04)]"
-        style={topbarPlacement}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-5">
-          <div className="relative min-w-0 flex-1">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]"
-              strokeWidth={2}
-            />
-            <input
-              type="text"
-              placeholder="Pesquisar processos, documentos..."
-              className="h-12 w-full rounded-[10px] border border-[#E5E7EB] bg-white py-[13px] pl-12 pr-4 text-[15px] font-normal leading-[1.45] text-[#111827] placeholder:text-[#9CA3AF] transition-shadow focus:border-[#FFB300] focus:outline-none focus:ring-2 focus:ring-[#FFB300]/25"
-            />
-          </div>
-          <button
-            type="button"
-            className="flex h-12 shrink-0 items-center gap-2.5 rounded-[10px] border border-[#E5E7EB] bg-white px-5 text-[15px] font-medium leading-none text-[#374151] transition-colors hover:border-[#D1D5DB] hover:bg-[#FAFAFA]"
-          >
-            <Filter className="h-[18px] w-[18px] text-[#6B7280]" strokeWidth={2} />
-            Filtros
-          </button>
-        </div>
-        <div className="flex shrink-0 items-center gap-6">
-          <div className="flex items-center gap-0.5 rounded-[10px] border border-[#E5E7EB] bg-[#F9FAFB] p-1.5">
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`flex h-9 w-9 items-center justify-center rounded-[8px] transition-colors ${
-                viewMode === 'list' ? 'bg-[#FFB300] text-[#111827] shadow-sm' : 'text-[#6B7280] hover:bg-white'
-              }`}
-              aria-label="Lista"
-            >
-              <LayoutList className="h-[18px] w-[18px]" strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`flex h-9 w-9 items-center justify-center rounded-[8px] transition-colors ${
-                viewMode === 'grid' ? 'bg-[#FFB300] text-[#111827] shadow-sm' : 'text-[#6B7280] hover:bg-white'
-              }`}
-              aria-label="Grade"
-            >
-              <LayoutGrid className="h-[18px] w-[18px]" strokeWidth={2} />
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="flex h-12 shrink-0 items-center gap-2.5 rounded-[10px] bg-[#FFB300] px-6 text-[15px] font-semibold leading-none tracking-tight text-[#111827] shadow-sm transition-colors hover:bg-[#E6A200]"
-          >
-            <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
-            IA Chat
-          </button>
-        </div>
-      </header>
-
-      {/* 2) Pastas — coluna 2, linha 2 */}
-      <div
-        className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-[#E5E7EB] bg-white shadow-[1px_0_0_rgba(15,23,42,0.03)]"
-        style={{ gridColumn: '2', gridRow: '2' }}
-      >
-        <div className="shrink-0 border-b border-[#E5E7EB] px-6 pb-5 pt-7">
-          <h2 className="text-lg font-bold leading-tight tracking-[-0.02em] text-[#111827]">Pastas</h2>
-        </div>
-        <div className="min-h-0 flex-1 divide-y divide-[#E5E7EB] overflow-y-auto">
-          {folders.map((folder) => {
-            const active = selectedFolder === folder.id
-            return (
-              <button
-                key={folder.id}
-                type="button"
-                onClick={() => setSelectedFolder(folder.id)}
-                className={`flex w-full items-center gap-4 px-6 py-[18px] text-left transition-colors ${
-                  active
-                    ? 'bg-[#FFFBF0] ring-1 ring-inset ring-[#F5E9C8]'
-                    : 'bg-transparent hover:bg-[#FAFAFA]'
-                }`}
-              >
-                <span className="flex w-9 shrink-0 items-center justify-center">
-                  <folder.icon
-                    className={`h-5 w-5 ${active ? 'text-[#B45309]' : 'text-[#6B7280]'}`}
-                    strokeWidth={active ? 2 : 1.75}
-                  />
-                </span>
-                <span
-                  className={`min-w-0 flex-1 text-[15px] leading-[1.4] ${
-                    active ? 'font-bold text-[#111827]' : 'font-normal text-[#4B5563]'
-                  }`}
-                >
-                  {folder.name}
-                </span>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-1.5 text-[11px] font-semibold tabular-nums leading-none ${
-                    active
-                      ? 'border border-[#E8D48A] bg-[#FFF4D6] text-[#713F12]'
-                      : 'border border-transparent bg-[#F3F4F6] text-[#4B5563]'
-                  }`}
-                >
-                  {folder.count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* 3) Conteúdo — coluna 3, linha 2 */}
-      <main
-        className="min-h-0 min-w-0 overflow-y-auto bg-[#F3F4F6] px-10 py-8 sm:px-12"
-        style={{ gridColumn: '3', gridRow: '2' }}
-      >
-        <div className="mb-8 text-left">
-          <h1 className="text-[22px] font-bold leading-[1.2] tracking-[-0.02em] text-[#111827]">
-            {folders.find((f) => f.id === selectedFolder)?.name}
-          </h1>
-          <p className="mt-2 text-[15px] font-normal leading-snug text-[#6B7280]">
-            {documents.length} processos encontrados
-          </p>
-        </div>
-        <div className="flex flex-col gap-6">
-          {documents.map((doc) => (
-            <article
-              key={doc.id}
-              className="rounded-[10px] border border-[#E5E7EB] bg-white p-7 shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition-shadow hover:border-[#E8E8E8] hover:shadow-[0_4px_14px_rgba(15,23,42,0.07)]"
-            >
-              <div className="flex items-start justify-between gap-8">
-                <div className="min-w-0 flex-1 pr-2">
-                  <h3 className="text-[15px] font-bold leading-[1.45] tracking-tight text-[#111827]">{doc.title}</h3>
-                  <p className="mt-2.5 text-[14px] font-normal leading-relaxed text-[#6B7280]">{doc.type}</p>
-                </div>
-                <span className="shrink-0 rounded-full border border-[#E8D48A] bg-[#FFFCF5] px-3 py-1.5 text-center text-[12px] font-semibold leading-tight tracking-tight text-[#92400E]">
-                  {doc.status}
-                </span>
-              </div>
-              <div className="mt-6 flex items-center gap-2 text-left text-[13px] font-normal leading-normal tracking-wide text-[#9CA3AF]">
-                <Clock className="h-4 w-4 shrink-0 opacity-80" strokeWidth={1.75} />
-                <span>{doc.date}</span>
-              </div>
-            </article>
-          ))}
-        </div>
-      </main>
-
-      {/* 4) Chat — coluna 4, linha 2 */}
-      {isChatOpen && (
-        <div
-          className="flex min-h-0 w-full min-w-0 max-w-[420px] flex-col overflow-hidden border-l border-[#E5E7EB] bg-white shadow-[-1px_0_0_rgba(15,23,42,0.03)]"
-          style={{ gridColumn: '4', gridRow: '2' }}
-        >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E5E7EB] bg-white px-6 py-[18px]">
-            <div className="flex min-w-0 items-center gap-3.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#FFB300] text-[#111827] shadow-sm">
-                <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
-              </div>
-              <h2 className="truncate text-lg font-bold leading-tight tracking-[-0.02em] text-[#111827]">Assistente IA</h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsChatOpen(false)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] transition-colors hover:bg-[#F3F4F6] hover:text-[#6B7280]"
-              aria-label="Fechar chat"
-            >
-              <span className="text-lg font-light leading-none">✕</span>
-            </button>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto bg-[#FAFBFC] px-6 py-6">
-            <div className="flex flex-col gap-7">
-              <div className="flex gap-3.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-[10px] bg-[#FFB300] text-[#111827] shadow-sm">
-                  <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 max-w-[calc(100%-3rem)] rounded-[14px] rounded-tl-[6px] border border-[#E5E7EB] bg-white px-5 py-4 text-left text-[14px] font-normal leading-[1.55] text-[#1F2937] shadow-sm">
-                  Olá! Sou seu assistente jurídico inteligente. Como posso ajudá-lo hoje?
-                </div>
-              </div>
-
-              <div className="flex items-end justify-end gap-3.5">
-                <div className="max-w-[min(85%,20rem)] rounded-[14px] rounded-tr-[6px] border border-[#1F2937] bg-[#1A1A1A] px-5 py-4 text-left text-[14px] font-normal leading-[1.55] text-white shadow-sm">
-                  Pode analisar o Processo 0001234-56.2026?
-                </div>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-[#F3F4F6]">
-                  <User className="h-[18px] w-[18px] text-[#6B7280]" strokeWidth={2} />
-                </div>
-              </div>
-
-              <div className="flex gap-3.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-[10px] bg-[#FFB300] text-[#111827] shadow-sm">
-                  <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 max-w-[calc(100%-3rem)] rounded-[14px] rounded-tl-[6px] border border-[#E5E7EB] bg-white px-5 py-4 text-left text-[14px] leading-[1.55] text-[#1F2937] shadow-sm">
-                  <p className="mb-3.5 font-normal leading-[1.5]">Analisando o processo... Aqui está um resumo:</p>
-                  <ul className="list-disc space-y-2.5 pl-5 text-[14px] leading-[1.5] text-[#4B5563]">
-                    <li>Tipo: Ação Civil Pública</li>
-                    <li>Status: Em andamento</li>
-                    <li>Próxima audiência: 22/04/2026</li>
-                    <li>Recomendação: Revisar documentação anexa</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="shrink-0 border-t border-[#E5E7EB] bg-white px-6 pb-6 pt-5">
-            <div className="flex items-center gap-3.5">
-              <input
-                type="text"
-                placeholder="Digite sua mensagem..."
-                className="h-12 min-w-0 flex-1 rounded-[10px] border border-[#E5E7EB] bg-white px-4 text-[15px] font-normal leading-normal text-[#111827] placeholder:text-[#9CA3AF] shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] focus:border-[#FFB300] focus:outline-none focus:ring-2 focus:ring-[#FFB300]/25"
-              />
-              <button
-                type="button"
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FFB300] text-[#111827] shadow-sm transition-colors hover:bg-[#E6A200]"
-                aria-label="Enviar mensagem"
-              >
-                <Send className="h-5 w-5" strokeWidth={2} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <PageGrid $chatOpen={isChatOpen}>
+      <HomeSidebar activeItem={sidebarActive} onSelectItem={setSidebarActive} />
+      <HomeTopbar
+        isChatOpen={isChatOpen}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onToggleChat={toggleChat}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+      />
+      <FoldersPanel
+        folders={foldersWithCount}
+        selectedFolder={selectedFolder}
+        onSelectFolder={handleSelectFolder}
+      />
+      <DocumentsPanel
+        folders={foldersWithCount}
+        selectedFolder={selectedFolder}
+        documents={filteredDocuments}
+        selectedDocumentId={selectedDocumentId}
+        onSelectDocument={handleSelectDocument}
+        viewMode={viewMode}
+        totalDocuments={documentsForSelectedFolder.length}
+      />
+      <AssistantPanel
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        messages={chatMessages}
+        inputValue={chatInput}
+        onInputChange={handleChatInputChange}
+        onSendMessage={handleSendMessage}
+        isLoading={isChatLoading}
+        error={chatError}
+        contextLabel={activeChatContext.label}
+        contextDescription={chatContextDescription}
+      />
+    </PageGrid>
   )
 }

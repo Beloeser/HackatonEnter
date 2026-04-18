@@ -1,0 +1,102 @@
+.folder-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-sm);
+}
+
+.folder-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+  border-color: var(--color-secondary);
+}
+
+.folder-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+}
+
+.folder-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.folder-delete-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.folder-delete-btn:hover {
+  background-color: #f0f0f0;
+  color: #e74c3c;
+}
+
+.folder-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.folder-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-dark);
+  margin: 0;
+  word-break: break-word;
+}
+
+.folder-info {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  .folder-card {
+    padding: var(--spacing-md);
+  }
+
+  .folder-icon {
+    font-size: 28px;
+  }
+
+  .folder-name {
+    font-size: 15px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .folder-card {
+    padding: var(--spacing-md);
+  }
+
+  .folder-icon {
+    font-size: 24px;
+  }
+
+  .folder-name {
+    font-size: 14px;
+  }
+
+  .folder-info {
+    font-size: 12px;
+  }
+}
