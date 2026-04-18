@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import styled from 'styled-components'
 import {
+  AlertCircle,
   ArrowLeft,
+  CheckCircle2,
   CircleDollarSign,
   Copy,
   ExternalLink,
@@ -14,7 +16,12 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { usePersistentChatHistory } from '../hooks/usePersistentChatHistory'
-import { fetchCaseById, sendChatMessage } from '../services/api'
+import {
+  fetchCaseById,
+  fetchCaseRecommendation,
+  finalizeCaseResult,
+  sendChatMessage,
+} from '../services/api'
 import AssistantPanel from './home/components/AssistantPanel'
 
 const PageLayout = styled.main`
@@ -194,6 +201,11 @@ const DataValue = styled.dd`
   font-weight: ${({ $strong }) => ($strong ? 700 : 500)};
 `
 
+const ValueStack = styled.div`
+  display: grid;
+  gap: 2px;
+`
+
 const ActionGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -231,6 +243,181 @@ const Feedback = styled.p`
   color: ${({ $error }) => ($error ? '#b91c1c' : '#6b7280')};
 `
 
+const List = styled.ul`
+  margin: 0;
+  padding-left: 18px;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.5;
+  display: grid;
+  gap: 6px;
+`
+
+const Hint = styled.p`
+  margin: 10px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+`
+
+const SummaryText = styled.p`
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-line;
+`
+
+const SummaryPanel = styled.div`
+  border: 1px solid #fde7b0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffdf7 0%, #ffffff 100%);
+  padding: 14px;
+`
+
+const SummaryLead = styled.p`
+  margin: 0;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.65;
+  font-weight: 600;
+`
+
+const SummaryGrid = styled.div`
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const SummaryPoint = styled.article`
+  border: 1px solid #f3f4f6;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px 11px;
+`
+
+const SummaryPointTitle = styled.h4`
+  margin: 0;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+`
+
+const SummaryPointText = styled.p`
+  margin: 6px 0 0;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.55;
+`
+
+const DecisionRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const DecisionButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid ${({ $active }) => ($active ? '#f59e0b' : '#d1d5db')};
+  border-radius: 10px;
+  background: ${({ $active }) => ($active ? '#fff7e0' : '#ffffff')};
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 11px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+
+  &:hover {
+    border-color: #f59e0b;
+    background: #fff7e0;
+  }
+`
+
+const FieldBlock = styled.label`
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+`
+
+const FieldLabel = styled.span`
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+`
+
+const TextInput = styled.input`
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+  }
+`
+
+const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+  }
+`
+
+const PublishButton = styled.button`
+  margin-top: 12px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #111827;
+  border-radius: 10px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 11px 12px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+`
+
 const StateCard = styled.section`
   border: 1px solid #e5e7eb;
   border-radius: 14px;
@@ -258,6 +445,90 @@ function formatCurrency(value) {
   }).format(parsed)
 }
 
+function formatDateTime(value) {
+  if (!value) {
+    return 'Não informado'
+  }
+
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return 'Não informado'
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function humanizeToken(value) {
+  return String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function formatJudicialPhase(value) {
+  const normalized = String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+
+  const knownLabels = {
+    'peticao inicial protocolada': 'Peticao inicial protocolada',
+    'citacao pendente': 'Citacao pendente',
+    'contestacao apresentada': 'Contestacao apresentada',
+    instrucao: 'Em instrucao',
+    sentenca: 'Sentenca',
+    recurso: 'Em recurso',
+    'fase processual nao confirmada': 'Fase processual ainda não confirmada',
+  }
+
+  if (knownLabels[normalized]) {
+    return knownLabels[normalized]
+  }
+
+  const raw = humanizeToken(value)
+  if (!raw) {
+    return 'Fase processual ainda não confirmada'
+  }
+
+  return raw.charAt(0).toUpperCase() + raw.slice(1)
+}
+
+function parseCaseSummary(summary) {
+  const blocks = String(summary || '')
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+
+  if (blocks.length === 0) {
+    return { intro: '', points: [] }
+  }
+
+  const intro = blocks[0]
+  const points = blocks.slice(1).map((block, index) => {
+    const parsed = block.match(/^([^:]{3,90}):\s*([\s\S]+)$/)
+    if (!parsed) {
+      return {
+        title: `Ponto ${index + 1}`,
+        text: block,
+      }
+    }
+
+    return {
+      title: parsed[1].trim(),
+      text: parsed[2].trim(),
+    }
+  })
+
+  return { intro, points }
+}
+
 function mapCaseFromApi(payload) {
   const raw = payload?.data || payload?.case || payload
   if (!raw || typeof raw !== 'object') {
@@ -269,6 +540,13 @@ function mapCaseFromApi(payload) {
     processNumber: raw.processNumber || '',
     title: raw.title || (raw.processNumber ? `Processo ${raw.processNumber}` : 'Processo'),
     status: raw.status || 'em_analise',
+    internalStatus: raw.internalStatus || raw.status || 'em_analise',
+    judicialStatus: raw.judicialStatus || 'nao_confirmado',
+    judicialPhase: raw.judicialPhase || 'fase processual nao confirmada',
+    actionClass: raw.actionClass || 'geral',
+    clientRole: raw.clientRole || 'autor',
+    suggestedThesis: raw.suggestedThesis || '',
+    actionContext: raw.actionContext || {},
     type: raw.type || raw.subject || 'Assunto nao informado',
     subType: raw.subType || raw.subSubject || 'Nao informado',
     uf: raw.uf || '--',
@@ -278,6 +556,12 @@ function mapCaseFromApi(payload) {
     microResult: raw.microResult || 'Nao informado',
     recommendation: raw.recommendation || {},
     result: raw.result || {},
+    financialEstimate: raw.financialEstimate || {},
+    consistencyIssues: Array.isArray(raw.consistencyIssues) ? raw.consistencyIssues : [],
+    terminologyAlerts: Array.isArray(raw.terminologyAlerts) ? raw.terminologyAlerts : [],
+    dataOrigins: raw.dataOrigins || {},
+    confidenceByBlock: raw.confidenceByBlock || {},
+    decisionTrail: Array.isArray(raw.decisionTrail) ? raw.decisionTrail : [],
   }
 }
 
@@ -319,11 +603,24 @@ export default function CaseDetailsScreen() {
   const [chatInput, setChatInput] = useState('')
   const [chatError, setChatError] = useState('')
   const [isChatLoading, setIsChatLoading] = useState(false)
+  const [isRecommendationLoading, setIsRecommendationLoading] = useState(true)
+  const [recommendationError, setRecommendationError] = useState('')
+  const [caseSummary, setCaseSummary] = useState('')
+  const [aiRecommendation, setAiRecommendation] = useState(null)
+  const [selectedDecision, setSelectedDecision] = useState('')
+  const [agreementValue, setAgreementValue] = useState('')
+  const [publishReason, setPublishReason] = useState('')
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [publishError, setPublishError] = useState('')
+  const [publishSuccess, setPublishSuccess] = useState('')
+
+  const parsedSummary = useMemo(() => parseCaseSummary(caseSummary), [caseSummary])
 
   const chatContext = useMemo(
     () => ({
       key: `process:${caseId || 'desconhecido'}`,
       type: 'process',
+      id: caseId || '',
       label: caseData?.title || `Processo ${caseData?.processNumber || caseId || 'selecionado'}`,
     }),
     [caseId, caseData?.title, caseData?.processNumber],
@@ -364,7 +661,7 @@ export default function CaseDetailsScreen() {
         const message =
           requestError?.response?.data?.message ||
           requestError?.message ||
-          'Nao foi possivel carregar o detalhe do processo.'
+          'Não foi possível carregar os detalhes do processo.'
 
         setError(message)
         setCaseData(null)
@@ -383,10 +680,82 @@ export default function CaseDetailsScreen() {
   }, [caseId])
 
   useEffect(() => {
+    let isMounted = true
+
+    const loadRecommendation = async () => {
+      setIsRecommendationLoading(true)
+      setRecommendationError('')
+
+      try {
+        const payload = await fetchCaseRecommendation(caseId)
+        const recommendationData = payload?.data || {}
+
+        if (!isMounted) {
+          return
+        }
+
+        setCaseSummary(String(recommendationData.summary || ''))
+        setAiRecommendation(recommendationData.recommendation || null)
+        setCaseData((current) =>
+          current
+            ? {
+                ...current,
+                consistencyIssues: Array.isArray(recommendationData.consistencyIssues)
+                  ? recommendationData.consistencyIssues
+                  : current.consistencyIssues,
+                terminologyAlerts: Array.isArray(recommendationData.terminologyAlerts)
+                  ? recommendationData.terminologyAlerts
+                  : current.terminologyAlerts,
+              }
+            : current,
+        )
+        setSelectedDecision(String(recommendationData.recommendation?.decision || ''))
+
+        if (recommendationData.recommendation?.decision === 'acordo') {
+          const suggested = Number(recommendationData.recommendation?.suggestedValue || 0)
+          setAgreementValue(suggested > 0 ? String(Math.round(suggested)) : '')
+        } else {
+          setAgreementValue('')
+        }
+      } catch (requestError) {
+        if (!isMounted) {
+          return
+        }
+
+        const message =
+          requestError?.response?.data?.message ||
+          requestError?.message ||
+          'Não foi possível carregar a recomendacao da IA.'
+
+        setRecommendationError(message)
+        setCaseSummary('')
+        setAiRecommendation(null)
+      } finally {
+        if (isMounted) {
+          setIsRecommendationLoading(false)
+        }
+      }
+    }
+
+    loadRecommendation()
+
+    return () => {
+      isMounted = false
+    }
+  }, [caseId])
+
+  useEffect(() => {
     setChatInput('')
     setChatError('')
     setIsChatLoading(false)
   }, [chatContext.key])
+
+  useEffect(() => {
+    setPublishReason('')
+    setPublishError('')
+    setPublishSuccess('')
+    setIsPublishing(false)
+  }, [caseId])
 
   const externalLink = useMemo(() => {
     if (!caseData?.processNumber) {
@@ -414,6 +783,7 @@ export default function CaseDetailsScreen() {
     const requestContext = {
       key: chatContext.key,
       type: chatContext.type,
+      id: chatContext.id,
       label: chatContext.label,
     }
 
@@ -435,6 +805,7 @@ export default function CaseDetailsScreen() {
       const response = await sendChatMessage({
         message,
         history,
+        context: requestContext,
       })
 
       const assistantReply = typeof response?.reply === 'string' ? response.reply.trim() : ''
@@ -451,7 +822,7 @@ export default function CaseDetailsScreen() {
       const messageText =
         requestError?.response?.data?.error ||
         requestError?.message ||
-        'Nao foi possivel enviar sua mensagem para a IA.'
+        'Não foi possível enviar sua mensagem para a IA.'
 
       setChatError(messageText)
     } finally {
@@ -464,7 +835,7 @@ export default function CaseDetailsScreen() {
       await navigator.clipboard.writeText(externalLink)
       setFeedback('Link do processo copiado com sucesso.')
     } catch {
-      setFeedback('Nao foi possivel copiar automaticamente. Copie manualmente do navegador.')
+      setFeedback('Não foi possível copiar automaticamente. Copie manualmente do navegador.')
     }
   }
 
@@ -501,6 +872,68 @@ export default function CaseDetailsScreen() {
     setFeedback('Download mock da procuracao iniciado.')
   }
 
+  const handleSelectDecision = (decision) => {
+    setSelectedDecision(decision)
+    setPublishError('')
+    setPublishSuccess('')
+    if (decision === 'defesa') {
+      setAgreementValue('')
+    }
+  }
+
+  const handlePublishResult = async () => {
+    if (isPublishing || !caseData) {
+      return
+    }
+
+    if (!selectedDecision) {
+      setPublishError('Selecione acordo ou defesa antes de publicar.')
+      return
+    }
+
+    if (selectedDecision === 'acordo') {
+      const parsedAgreementValue = Number(agreementValue)
+      if (!Number.isFinite(parsedAgreementValue) || parsedAgreementValue <= 0) {
+      setPublishError('Informe um valor de acordo válido maior que zero.')
+        return
+      }
+    }
+
+    if (!publishReason.trim()) {
+      setPublishError('Explique o motivo da escolha para finalizar o resultado.')
+      return
+    }
+
+    setPublishError('')
+    setPublishSuccess('')
+    setIsPublishing(true)
+
+    try {
+      const payload = await finalizeCaseResult(caseData.id, {
+        decision: selectedDecision,
+        agreementValue: selectedDecision === 'acordo' ? Number(agreementValue) : 0,
+        justification: publishReason.trim(),
+      })
+
+      const savedCase = mapCaseFromApi(payload?.data?.case || payload?.data?.data?.case || payload?.data?.case)
+      if (savedCase) {
+        setCaseData(savedCase)
+      }
+
+      setPublishSuccess('Resultado publicado com sucesso.')
+      setFeedback('Fluxo do advogado finalizado neste processo.')
+    } catch (requestError) {
+      const message =
+        requestError?.response?.data?.message ||
+        requestError?.message ||
+        'Não foi possível publicar o resultado.'
+
+      setPublishError(message)
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+
   return (
     <PageLayout $chatOpen={isChatOpen}>
       <DetailsColumn>
@@ -526,20 +959,49 @@ export default function CaseDetailsScreen() {
           {isLoading ? (
             <StateCard>Carregando detalhes do processo...</StateCard>
           ) : error || !caseData ? (
-            <StateCard>{error || 'Processo nao encontrado.'}</StateCard>
+            <StateCard>{error || 'Processo não encontrado.'}</StateCard>
           ) : (
             <>
               <Hero>
                 <HeroTitle>{caseData.title}</HeroTitle>
                 <HeroMeta>
-                  <Tag $accent>{caseData.status}</Tag>
+                  <Tag $accent>Status interno: {caseData.internalStatus}</Tag>
+                  <Tag>Andamento no tribunal: {formatJudicialPhase(caseData.judicialPhase)}</Tag>
                   <Tag>UF {caseData.uf}</Tag>
                   <Tag>{caseData.processNumber || 'Sem numero'}</Tag>
                 </HeroMeta>
               </Hero>
 
               <Grid>
-                <Card $span={4}>
+                <Card $span={12}>
+                  <CardHeader>
+                    <FileText size={15} />
+                    Resumo do Caso
+                  </CardHeader>
+                  {isRecommendationLoading ? (
+                    <DataValue>Gerando resumo contextual...</DataValue>
+                  ) : caseSummary ? (
+                    <SummaryPanel>
+                      <SummaryLead>{parsedSummary.intro}</SummaryLead>
+                      {parsedSummary.points.length > 0 ? (
+                        <SummaryGrid>
+                          {parsedSummary.points.map((point, index) => (
+                            <SummaryPoint key={`${point.title}-${index}`}>
+                              <SummaryPointTitle>{point.title}</SummaryPointTitle>
+                              <SummaryPointText>{point.text}</SummaryPointText>
+                            </SummaryPoint>
+                          ))}
+                        </SummaryGrid>
+                      ) : (
+                        <SummaryText>{caseSummary}</SummaryText>
+                      )}
+                    </SummaryPanel>
+                  ) : (
+                    <DataValue>Não foi possível gerar resumo no momento.</DataValue>
+                  )}
+                </Card>
+
+                <Card $span={6}>
                   <CardHeader>
                     <Scale size={15} />
                     Dados Principais
@@ -554,13 +1016,17 @@ export default function CaseDetailsScreen() {
                       <DataValue>{caseData.subType}</DataValue>
                     </DataRow>
                     <DataRow>
-                      <DataLabel>Numero do processo</DataLabel>
-                      <DataValue>{caseData.processNumber || '--'}</DataValue>
+                      <DataLabel>Classe da acao</DataLabel>
+                      <DataValue>{caseData.actionClass || '--'}</DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>Polo do cliente</DataLabel>
+                      <DataValue>{caseData.clientRole || '--'}</DataValue>
                     </DataRow>
                   </DataList>
                 </Card>
 
-                <Card $span={4}>
+                <Card $span={6}>
                   <CardHeader>
                     <CircleDollarSign size={15} />
                     Valores
@@ -571,33 +1037,17 @@ export default function CaseDetailsScreen() {
                       <DataValue $strong>{formatCurrency(caseData.claimValue)}</DataValue>
                     </DataRow>
                     <DataRow>
-                      <DataLabel>Valor da condenacao</DataLabel>
-                      <DataValue $strong>{formatCurrency(caseData.condemnationValue)}</DataValue>
-                    </DataRow>
-                  </DataList>
-                </Card>
-
-                <Card $span={4}>
-                  <CardHeader>
-                    <Gavel size={15} />
-                    Resultado
-                  </CardHeader>
-                  <DataList>
-                    <DataRow>
-                      <DataLabel>Macro resultado</DataLabel>
-                      <DataValue>{caseData.macroResult}</DataValue>
+                      <DataLabel>{caseData.financialEstimate?.label || 'Estimativa financeira'}</DataLabel>
+                      <DataValue $strong>
+                        {formatCurrency(caseData.financialEstimate?.estimatedValue || caseData.condemnationValue)}
+                      </DataValue>
                     </DataRow>
                     <DataRow>
-                      <DataLabel>Micro resultado</DataLabel>
-                      <DataValue>{caseData.microResult}</DataValue>
-                    </DataRow>
-                    <DataRow>
-                      <DataLabel>Decisao tomada</DataLabel>
-                      <DataValue>{caseData.result.decisionTaken || 'Nao informado'}</DataValue>
-                    </DataRow>
-                    <DataRow>
-                      <DataLabel>Outcome final</DataLabel>
-                      <DataValue>{caseData.result.outcome || 'Nao informado'}</DataValue>
+                      <DataLabel>Faixa estimada</DataLabel>
+                      <DataValue>
+                        {formatCurrency(caseData.financialEstimate?.uncertaintyMin)} a{' '}
+                        {formatCurrency(caseData.financialEstimate?.uncertaintyMax)}
+                      </DataValue>
                     </DataRow>
                   </DataList>
                 </Card>
@@ -605,37 +1055,292 @@ export default function CaseDetailsScreen() {
                 <Card $span={6}>
                   <CardHeader>
                     <ShieldCheck size={15} />
-                    Recomendacao de IA (Mock)
+                    Recomendacao de IA
+                  </CardHeader>
+                  {isRecommendationLoading ? (
+                    <DataValue>Consultando IA com contexto do modelo de ML...</DataValue>
+                  ) : recommendationError ? (
+                    <Feedback $error>{recommendationError}</Feedback>
+                  ) : (
+                    <DataList>
+                      <DataRow>
+                        <DataLabel>Decisão sugerida</DataLabel>
+                        <DataValue>{aiRecommendation?.decision || 'Não informado'}</DataValue>
+                      </DataRow>
+                      <DataRow>
+                        <DataLabel>Status da recomendacao</DataLabel>
+                        <DataValue>{aiRecommendation?.status || caseData.recommendation?.status || 'preliminar'}</DataValue>
+                      </DataRow>
+                      <DataRow>
+                        <DataLabel>Estimativa de valor sugerido</DataLabel>
+                        <DataValue>
+                          {Number(aiRecommendation?.suggestedValue || 0) > 0
+                            ? formatCurrency(aiRecommendation?.suggestedValue)
+                            : 'Não informado'}
+                        </DataValue>
+                      </DataRow>
+                      <DataRow>
+                        <DataLabel>Confianca</DataLabel>
+                        <DataValue>
+                          {typeof aiRecommendation?.confidence === 'number'
+                            ? `${Math.round(aiRecommendation.confidence * 100)}%`
+                            : 'Não informado'}
+                        </DataValue>
+                      </DataRow>
+                      <DataRow>
+                        <DataLabel>Tese sugerida</DataLabel>
+                        <DataValue>{caseData.suggestedThesis || aiRecommendation?.decision || 'Não informado'}</DataValue>
+                      </DataRow>
+                      <DataRow>
+                        <DataLabel>Explicacao detalhada da escolha</DataLabel>
+                        <DataValue>{aiRecommendation?.explanation || 'Não informado'}</DataValue>
+                      </DataRow>
+                      <DataRow>
+                        <DataLabel>Aviso</DataLabel>
+                        <DataValue>{aiRecommendation?.disclaimer || caseData.recommendation?.disclaimer || 'Esta recomendacao depende de validacao humana.'}</DataValue>
+                      </DataRow>
+                    </DataList>
+                  )}
+                </Card>
+
+                <Card $span={6}>
+                  <CardHeader>
+                    <Gavel size={15} />
+                    Decisão do Advogado
                   </CardHeader>
                   <DataList>
                     <DataRow>
-                      <DataLabel>Decisao sugerida</DataLabel>
-                      <DataValue>{caseData.recommendation.decision || 'Nao informado'}</DataValue>
+                      <DataLabel>Status da decisão humana</DataLabel>
+                      <DataValue>{caseData.result?.status || 'pendente'}</DataValue>
                     </DataRow>
+                  </DataList>
+                  <DecisionRow>
+                    <DecisionButton
+                      type="button"
+                      $active={selectedDecision === 'acordo'}
+                      onClick={() => handleSelectDecision('acordo')}
+                    >
+                      Acordo
+                    </DecisionButton>
+                    <DecisionButton
+                      type="button"
+                      $active={selectedDecision === 'defesa'}
+                      onClick={() => handleSelectDecision('defesa')}
+                    >
+                      Defesa
+                    </DecisionButton>
+                  </DecisionRow>
+
+                  {selectedDecision === 'acordo' ? (
+                    <FieldBlock>
+                      <FieldLabel>Valor do acordo</FieldLabel>
+                      <TextInput
+                        type="number"
+                        min="0"
+                        step="0.01"
+                      placeholder="Ex.: 7500"
+                        value={agreementValue}
+                        onChange={(event) => setAgreementValue(event.target.value)}
+                      />
+                    </FieldBlock>
+                  ) : null}
+
+                  <FieldBlock>
+                    <FieldLabel>Justifique a escolha para publicar/finalizar</FieldLabel>
+                    <TextArea
+                      placeholder="Explique resumidamente o porquê da escolha."
+                      value={publishReason}
+                      onChange={(event) => setPublishReason(event.target.value)}
+                    />
+                  </FieldBlock>
+
+                  <PublishButton type="button" onClick={handlePublishResult} disabled={isPublishing}>
+                    {isPublishing ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+                    {isPublishing ? 'Publicando...' : 'Publicar / Finalizar Resultado'}
+                  </PublishButton>
+
+                  {publishError ? <Feedback $error>{publishError}</Feedback> : null}
+                  {publishSuccess ? <Feedback>{publishSuccess}</Feedback> : null}
+                </Card>
+
+                <Card $span={6}>
+                  <CardHeader>
+                    <FileText size={15} />
+                    Origem e Atualizacao
+                  </CardHeader>
+                  <DataList>
                     <DataRow>
-                      <DataLabel>Valor sugerido</DataLabel>
+                      <DataLabel>Andamento no tribunal</DataLabel>
                       <DataValue>
-                        {caseData.recommendation.suggestedValue
-                          ? formatCurrency(caseData.recommendation.suggestedValue)
-                          : 'Nao informado'}
+                        <ValueStack>
+                          <span>Origem: {caseData.dataOrigins?.judicialPhase?.source || 'Não informado'}</span>
+                          <span>Atualizado em: {formatDateTime(caseData.dataOrigins?.judicialPhase?.updatedAt)}</span>
+                        </ValueStack>
                       </DataValue>
                     </DataRow>
                     <DataRow>
-                      <DataLabel>Confianca</DataLabel>
+                      <DataLabel>Status interno</DataLabel>
                       <DataValue>
-                        {typeof caseData.recommendation.confidence === 'number'
-                          ? `${Math.round(caseData.recommendation.confidence * 100)}%`
-                          : 'Nao informado'}
+                        <ValueStack>
+                          <span>Origem: {caseData.dataOrigins?.internalStatus?.source || 'Não informado'}</span>
+                          <span>Atualizado em: {formatDateTime(caseData.dataOrigins?.internalStatus?.updatedAt)}</span>
+                        </ValueStack>
                       </DataValue>
                     </DataRow>
                     <DataRow>
-                      <DataLabel>Justificativa</DataLabel>
-                      <DataValue>{caseData.recommendation.reasoning || 'Nao informado'}</DataValue>
+                      <DataLabel>Recomendacao automatizada</DataLabel>
+                      <DataValue>
+                        <ValueStack>
+                          <span>Origem: {caseData.dataOrigins?.recommendation?.source || 'Não informado'}</span>
+                          <span>
+                            Atualizado em:{' '}
+                            {formatDateTime(
+                              aiRecommendation?.generatedAt || caseData.dataOrigins?.recommendation?.updatedAt,
+                            )}
+                          </span>
+                        </ValueStack>
+                      </DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>Decisão humana</DataLabel>
+                      <DataValue>
+                        <ValueStack>
+                          <span>Origem: {caseData.dataOrigins?.lawyerDecision?.source || 'Não informado'}</span>
+                          <span>Atualizado em: {formatDateTime(caseData.dataOrigins?.lawyerDecision?.updatedAt)}</span>
+                        </ValueStack>
+                      </DataValue>
                     </DataRow>
                   </DataList>
                 </Card>
 
                 <Card $span={6}>
+                  <CardHeader>
+                    <CircleDollarSign size={15} />
+                    Memória da estimativa
+                  </CardHeader>
+                  <DataList>
+                    <DataRow>
+                      <DataLabel>Base de cálculo</DataLabel>
+                      <DataValue>{caseData.financialEstimate?.calculationBase || 'Não informada'}</DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>Metodologia</DataLabel>
+                      <DataValue>{caseData.financialEstimate?.methodology || 'Não informada'}</DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>Documentos usados</DataLabel>
+                      <DataValue>
+                        {Array.isArray(caseData.financialEstimate?.documentsUsed) &&
+                        caseData.financialEstimate.documentsUsed.length > 0
+                          ? caseData.financialEstimate.documentsUsed.join(', ')
+                          : 'Não informado'}
+                      </DataValue>
+                    </DataRow>
+                    {caseData.actionClass === 'revisional_bancaria' ? (
+                      <>
+                        <DataRow>
+                          <DataLabel>Contrato envolvido</DataLabel>
+                          <DataValue>{caseData.actionContext?.contractReference || 'Não informado'}</DataValue>
+                        </DataRow>
+                        <DataRow>
+                          <DataLabel>Taxa contratada / taxa média</DataLabel>
+                          <DataValue>
+                            {caseData.actionContext?.contractedRate ?? 'n/a'} /{' '}
+                            {caseData.actionContext?.marketRate ?? 'n/a'}
+                          </DataValue>
+                        </DataRow>
+                        <DataRow>
+                          <DataLabel>Pedido principal</DataLabel>
+                          <DataValue>{caseData.actionContext?.mainClaim || 'Não informado'}</DataValue>
+                        </DataRow>
+                      </>
+                    ) : null}
+                  </DataList>
+                </Card>
+
+                <Card $span={6}>
+                  <CardHeader>
+                    <AlertCircle size={15} />
+                    Pendências de consistência
+                  </CardHeader>
+                  {caseData.consistencyIssues?.length ? (
+                    <List>
+                      {caseData.consistencyIssues.map((issue, index) => (
+                        <li key={`${issue.code || 'issue'}-${index}`}>
+                          [{issue.severity || 'warning'}] {issue.message || 'Inconsistencia detectada'}
+                        </li>
+                      ))}
+                    </List>
+                  ) : (
+                    <DataValue>Nenhuma pendência de consistência detectada.</DataValue>
+                  )}
+
+                  {caseData.terminologyAlerts?.length ? (
+                    <>
+                      <Hint>Alertas terminológicos</Hint>
+                      <List>
+                        {caseData.terminologyAlerts.map((alert, index) => (
+                          <li key={`alert-${index}`}>{alert}</li>
+                        ))}
+                      </List>
+                    </>
+                  ) : null}
+                </Card>
+
+                <Card $span={6}>
+                  <CardHeader>
+                    <ShieldCheck size={15} />
+                    Confiabilidade por bloco
+                  </CardHeader>
+                  <DataList>
+                    <DataRow>
+                      <DataLabel>Classificacao do assunto</DataLabel>
+                      <DataValue>
+                        {Math.round(Number(caseData.confidenceByBlock?.subjectClassification || 0) * 100)}%
+                      </DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>Estimativa financeira</DataLabel>
+                      <DataValue>
+                        {Math.round(Number(caseData.confidenceByBlock?.financialEstimate || 0) * 100)}%
+                      </DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>Fase processual</DataLabel>
+                      <DataValue>
+                        {Math.round(Number(caseData.confidenceByBlock?.judicialPhase || 0) * 100)}%
+                      </DataValue>
+                    </DataRow>
+                    <DataRow>
+                      <DataLabel>Tese sugerida</DataLabel>
+                      <DataValue>
+                        {Math.round(Number(caseData.confidenceByBlock?.suggestedThesis || 0) * 100)}%
+                      </DataValue>
+                    </DataRow>
+                  </DataList>
+                </Card>
+
+                <Card $span={12}>
+                  <CardHeader>
+                    <Gavel size={15} />
+                    Trilha de decisão
+                  </CardHeader>
+                  {caseData.decisionTrail?.length ? (
+                    <List>
+                      {caseData.decisionTrail.map((item, index) => (
+                        <li key={`${item.type || 'trail'}-${index}`}>
+                          Em {formatDateTime(item.createdAt)}, {item.actor || 'sistema'} registrou o evento{' '}
+                          "{item.type || 'evento'}". Recomendacao: {item.recommendationDecision || 'n/a'}. Decisao
+                          humana: {item.lawyerDecision || 'n/a'}. Motivo: {item.reason || 'Não informado'}.
+                        </li>
+                      ))}
+                    </List>
+                  ) : (
+                    <DataValue>Nenhum evento registrado na trilha de decisão.</DataValue>
+                  )}
+                </Card>
+
+                <Card $span={12}>
                   <CardHeader>
                     <FileText size={15} />
                     Documentos e Links (Mock)
@@ -653,7 +1358,7 @@ export default function CaseDetailsScreen() {
                     </ActionButton>
 
                     <ActionButton type="button" onClick={handleDownloadPowerOfAttorney}>
-                      Baixar Procuracao
+                      Baixar procuracao
                       <FileDown size={16} />
                     </ActionButton>
 
@@ -673,10 +1378,10 @@ export default function CaseDetailsScreen() {
                       <ExternalLink size={16} />
                     </ActionButton>
                   </ActionGrid>
-
-                  {feedback ? <Feedback>{feedback}</Feedback> : null}
                 </Card>
               </Grid>
+
+              {feedback ? <Feedback>{feedback}</Feedback> : null}
             </>
           )}
         </Container>
@@ -692,8 +1397,11 @@ export default function CaseDetailsScreen() {
         isLoading={isChatLoading}
         error={chatError}
         contextLabel={chatContext.label}
-        contextDescription="Historico do processo selecionado"
+        contextDescription="Histórico do processo selecionado"
       />
     </PageLayout>
   )
 }
+
+
+

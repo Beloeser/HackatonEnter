@@ -178,8 +178,8 @@ export default function DocumentsPanel({
   const subtitleText = activeDocument
     ? `Processo ativo no chat: ${activeDocument.title}`
     : documents.length === totalDocuments
-      ? `${documents.length} processos encontrados • Modo ${viewMode === 'grid' ? 'grade' : 'card'}`
-      : `${documents.length} de ${totalDocuments} processos exibidos • Modo ${viewMode === 'grid' ? 'grade' : 'card'}`
+      ? `${documents.length} processos encontrados - modo ${viewMode === 'grid' ? 'grade' : 'card'}`
+      : `${documents.length} de ${totalDocuments} processos exibidos - modo ${viewMode === 'grid' ? 'grade' : 'card'}`
 
   return (
     <Content>
@@ -239,3 +239,4 @@ export default function DocumentsPanel({
     </Content>
   )
 }
+

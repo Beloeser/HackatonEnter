@@ -5,6 +5,8 @@ import Case from './src/models/CaseModel.js'
 
 dotenv.config()
 
+const now = new Date('2026-04-18T10:00:00.000Z')
+
 const sampleUsers = [
   {
     email: 'maria.silva@escritorio.com',
@@ -32,469 +34,386 @@ const sampleUsers = [
   },
 ]
 
+function buildOrigins(updatedAt, recommendationAt, lawyerDecisionAt) {
+  return {
+    judicialPhase: {
+      source: 'importado do tribunal',
+      updatedAt,
+    },
+    internalStatus: {
+      source: 'informado pela equipe',
+      updatedAt,
+    },
+    recommendation: {
+      source: 'estimado automaticamente',
+      updatedAt: recommendationAt,
+    },
+    lawyerDecision: {
+      source: 'informado pelo advogado',
+      updatedAt: lawyerDecisionAt,
+    },
+    financialEstimate: {
+      source: 'calculado com base nos documentos anexados',
+      updatedAt,
+    },
+  }
+}
+
 const sampleCases = [
   {
-    processNumber: '1864301-89.2026.8.06.1001',
-    uf: 'CE',
-    subject: 'Nao reconhece operacao',
-    subSubject: 'Pix',
-    macroResult: 'Nao exito',
-    microResult: 'Parcial procedencia',
-    claimValue: 13780,
-    condemnationValue: 7480,
-    status: 'em_analise',
-    recommendation: {
-      decision: 'propor acordo parcial',
-      suggestedValue: 7200,
-      confidence: 0.71,
-      reasoning: 'ha sinal de parcial procedencia com reducao de risco via acordo',
-    },
-    result: {
-      decisionTaken: 'em_andamento',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864302-90.2026.8.05.0001',
-    uf: 'BA',
-    subject: 'Cobranca indevida',
-    subSubject: 'Cartao de credito',
-    macroResult: 'Procedente em parte',
-    microResult: 'Condenacao parcial',
-    claimValue: 9400,
-    condemnationValue: 4200,
-    status: 'em_revisao',
-    recommendation: {
-      decision: 'negociar valor',
-      suggestedValue: 3900,
-      confidence: 0.74,
-      reasoning: 'historico local aponta fechamento rapido com faixa de acordo proxima',
-    },
-    result: {
-      decisionTaken: 'aguardando_aprovacao',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864303-01.2026.8.07.0002',
-    uf: 'RJ',
-    subject: 'Revisao contratual',
-    subSubject: 'Financiamento de veiculo',
-    macroResult: 'Procedente',
-    microResult: 'Reducao de encargos',
-    claimValue: 26100,
-    condemnationValue: 9800,
-    status: 'aguardando_decisao',
-    recommendation: {
-      decision: 'manter proposta tecnica',
-      suggestedValue: 9200,
-      confidence: 0.66,
-      reasoning: 'calculo revisional apresenta chance real de ajuste parcial do contrato',
-    },
-    result: {
-      decisionTaken: 'peticao_protocolada',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864304-12.2026.8.26.0003',
-    uf: 'SP',
-    subject: 'Acao trabalhista',
-    subSubject: 'Horas extras',
-    macroResult: 'Procedente em parte',
-    microResult: 'Condenacao parcial',
-    claimValue: 31200,
-    condemnationValue: 15400,
-    status: 'em_andamento',
-    recommendation: {
-      decision: 'avaliar acordo com teto',
-      suggestedValue: 14500,
-      confidence: 0.69,
-      reasoning: 'prova testemunhal mista indica boa chance de reduzir impacto financeiro',
-    },
-    result: {
-      decisionTaken: 'audiencia_marcada',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864305-23.2026.8.16.0004',
-    uf: 'MG',
-    subject: 'Dano moral',
-    subSubject: 'Negativacao indevida',
-    macroResult: 'Procedente',
-    microResult: 'Condenacao total',
-    claimValue: 18700,
-    condemnationValue: 11200,
-    status: 'urgente_prazo_48h',
-    recommendation: {
-      decision: 'agir em regime de urgencia',
-      suggestedValue: 10500,
-      confidence: 0.83,
-      reasoning: 'prazo processual curto e jurisprudencia desfavoravel exigem resposta imediata',
-    },
-    result: {
-      decisionTaken: 'priorizado',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864306-34.2026.8.19.0005',
-    uf: 'RJ',
-    subject: 'Recuperacao de credito',
-    subSubject: 'Duplicata mercantil',
-    macroResult: 'Exito',
-    microResult: 'Homologado acordo',
-    claimValue: 45800,
-    condemnationValue: 0,
-    status: 'arquivado',
-    recommendation: {
-      decision: 'encerrar com baixa',
-      suggestedValue: 0,
-      confidence: 0.91,
-      reasoning: 'acordo integral cumprido e sem pendencias residuais',
-    },
-    result: {
-      decisionTaken: 'arquivado',
-      finalValue: 45800,
-      outcome: 'encerrado_com_exito',
-      effective: true,
-    },
-  },
-  {
-    processNumber: '1864307-45.2026.8.21.0006',
-    uf: 'RS',
-    subject: 'Rescisao contratual',
-    subSubject: 'Locacao comercial',
-    macroResult: 'Nao exito',
-    microResult: 'Improcedente total',
-    claimValue: 22800,
-    condemnationValue: 0,
-    status: 'liminar_emergencial',
-    recommendation: {
-      decision: 'reforcar pedido liminar',
-      suggestedValue: 0,
-      confidence: 0.59,
-      reasoning: 'documentacao inicial e fraca, mas ha espaco para complemento imediato',
-    },
-    result: {
-      decisionTaken: 'liminar_protocolada',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864308-56.2026.8.15.0007',
-    uf: 'PA',
-    subject: 'Responsabilidade civil',
-    subSubject: 'Acidente de consumo',
-    macroResult: 'Procedente em parte',
-    microResult: 'Danos materiais',
-    claimValue: 17300,
-    condemnationValue: 6700,
-    status: 'pendente_documentos',
-    recommendation: {
-      decision: 'coletar provas complementares',
-      suggestedValue: 6200,
-      confidence: 0.64,
-      reasoning: 'falta laudo tecnico para sustentar tese com maior seguranca',
-    },
-    result: {
-      decisionTaken: 'aguardando_documentacao',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864309-67.2026.8.11.0008',
-    uf: 'PE',
-    subject: 'Falha na prestacao de servico',
-    subSubject: 'Internet residencial',
-    macroResult: 'Procedente em parte',
-    microResult: 'Obrigacao de fazer',
-    claimValue: 9800,
-    condemnationValue: 3100,
-    status: 'ativo',
-    recommendation: {
-      decision: 'manter defesa com provas tecnicas',
-      suggestedValue: 2800,
-      confidence: 0.62,
-      reasoning: 'ha registros de atendimento que podem reduzir extensao da condenacao',
-    },
-    result: {
-      decisionTaken: 'contestacao_apresentada',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864310-78.2026.8.13.0009',
-    uf: 'PR',
-    subject: 'Plano de saude',
-    subSubject: 'Negativa de cobertura',
-    macroResult: 'Procedente',
-    microResult: 'Obrigacao de custeio',
-    claimValue: 42500,
-    condemnationValue: 17800,
-    status: 'transito_em_julgado',
-    recommendation: {
-      decision: 'encerrar fase cognitiva',
-      suggestedValue: 0,
-      confidence: 0.94,
-      reasoning: 'decisao consolidada sem novos recursos viaveis',
-    },
-    result: {
-      decisionTaken: 'sentenca_transitada',
-      finalValue: 17800,
-      outcome: 'encerrado',
-      effective: true,
-    },
-  },
-  {
-    processNumber: '1864311-89.2026.8.01.0010',
-    uf: 'AC',
-    subject: 'Direito do consumidor',
-    subSubject: 'Atraso na entrega',
-    macroResult: 'Procedente em parte',
-    microResult: 'Dano material',
-    claimValue: 7400,
-    condemnationValue: 2600,
-    status: 'triagem_documental',
-    recommendation: {
-      decision: 'concluir triagem e responder',
-      suggestedValue: 2400,
-      confidence: 0.67,
-      reasoning: 'documentos basicos ja apontam responsabilidade parcial',
-    },
-    result: {
-      decisionTaken: 'triagem_em_andamento',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864312-90.2026.8.02.0011',
-    uf: 'AL',
-    subject: 'Propriedade intelectual',
-    subSubject: 'Uso indevido de marca',
-    macroResult: 'Exito',
-    microResult: 'Acordo extrajudicial',
-    claimValue: 39800,
-    condemnationValue: 0,
-    status: 'baixado_definitivamente',
-    recommendation: {
-      decision: 'baixar processo',
-      suggestedValue: 0,
-      confidence: 0.9,
-      reasoning: 'acordo executado e homologado sem saldo pendente',
-    },
-    result: {
-      decisionTaken: 'baixado',
-      finalValue: 32000,
-      outcome: 'encerrado_com_acordo',
-      effective: true,
-    },
-  },
-  {
-    processNumber: '1864313-01.2026.8.03.0012',
-    uf: 'AP',
-    subject: 'Execucao fiscal',
-    subSubject: 'ISS',
-    macroResult: 'Nao exito',
-    microResult: 'Penhora deferida',
-    claimValue: 86300,
-    condemnationValue: 51200,
-    status: 'concluso_para_despacho',
-    recommendation: {
-      decision: 'priorizar plano de parcelamento',
-      suggestedValue: 48000,
-      confidence: 0.58,
-      reasoning: 'risco elevado de constricao patrimonial apos despacho',
-    },
-    result: {
-      decisionTaken: 'aguardando_despacho',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864314-12.2026.8.04.0013',
-    uf: 'AM',
-    subject: 'Previdenciario',
-    subSubject: 'Revisao de beneficio',
-    macroResult: 'Procedente em parte',
-    microResult: 'Recalculo parcial',
-    claimValue: 52200,
-    condemnationValue: 18600,
-    status: 'em_andamento',
-    recommendation: {
-      decision: 'manter estrategia de calculo',
-      suggestedValue: 17800,
-      confidence: 0.7,
-      reasoning: 'pericia contabil favoravel com margem de ajuste moderada',
-    },
-    result: {
-      decisionTaken: 'pericia_solicitada',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864315-23.2026.8.08.0014',
-    uf: 'ES',
-    subject: 'Tributario',
-    subSubject: 'Compensacao PIS COFINS',
-    macroResult: 'Procedente',
-    microResult: 'Direito reconhecido',
-    claimValue: 121000,
-    condemnationValue: 0,
-    status: 'aguardando_decisao',
-    recommendation: {
-      decision: 'aguardar sentenca com memoria de calculo pronta',
-      suggestedValue: 0,
-      confidence: 0.77,
-      reasoning: 'linha jurisprudencial recente favorece tese principal',
-    },
-    result: {
-      decisionTaken: 'memoria_finalizada',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864316-34.2026.8.09.0015',
-    uf: 'GO',
-    subject: 'Ambiental',
-    subSubject: 'Auto de infracao',
-    macroResult: 'Nao exito',
-    microResult: 'Multa mantida',
-    claimValue: 67000,
-    condemnationValue: 33500,
-    status: 'urgente_prazo_24h',
-    recommendation: {
-      decision: 'apresentar recurso urgente',
-      suggestedValue: 30000,
-      confidence: 0.61,
-      reasoning: 'prazo final em 24h e risco de inscricao imediata em divida ativa',
-    },
-    result: {
-      decisionTaken: 'recurso_em_preparo',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864317-45.2026.8.10.0016',
-    uf: 'MA',
-    subject: 'Societario',
-    subSubject: 'Dissolucao parcial',
-    macroResult: 'Procedente em parte',
-    microResult: 'Apuracao de haveres',
-    claimValue: 157000,
-    condemnationValue: 68400,
-    status: 'ativo',
-    recommendation: {
-      decision: 'seguir com pericia de haveres',
-      suggestedValue: 65000,
-      confidence: 0.65,
-      reasoning: 'ha divergencia contabil com chance razoavel de composicao',
-    },
-    result: {
-      decisionTaken: 'fase_instrutoria',
-      finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
-    },
-  },
-  {
-    processNumber: '1864318-56.2026.8.12.0017',
+    processNumber: '1865001-11.2026.8.12.0001',
     uf: 'MS',
     subject: 'Bancario',
     subSubject: 'Juros abusivos',
     macroResult: 'Procedente em parte',
-    microResult: 'Recalculo de contrato',
+    microResult: 'Recalculo contratual',
     claimValue: 28600,
     condemnationValue: 11900,
-    status: 'em_analise',
+    status: 'decisao_validada',
+    judicialStatus: 'fase_revisional_confirmada',
+    judicialPhase: 'instrução',
+    internalStatus: 'decisao_validada',
+    actionClass: 'revisional_bancaria',
+    clientRole: 'autor',
+    suggestedThesis: 'manter tese revisional',
+    actionContext: {
+      contractReference: 'CONTR-2024-9917',
+      contractedRate: 3.19,
+      marketRate: 2.08,
+      hasCapitalization: true,
+      mainClaim: 'revisao de encargos e exclusao de juros acima da taxa media',
+      urgencyReliefRequested: true,
+      causeValueCriteria: 'diferenca estimada entre evolucao contratual e evolucao revisada',
+    },
     recommendation: {
-      decision: 'manter tese revisional',
+      decision: 'acordo',
       suggestedValue: 11000,
       confidence: 0.73,
-      reasoning: 'laudo preliminar indica cobranca acima da media de mercado',
+      reasoning:
+        'Prova documental indica chance relevante de revisao parcial e composicao em faixa segura para mitigar risco financeiro.',
+      status: 'preliminar',
+      generatedAt: new Date('2026-04-10T14:00:00.000Z'),
+      disclaimer: 'Esta e uma sugestao automatizada e nao substitui validacao do advogado responsavel.',
     },
     result: {
-      decisionTaken: 'analise_complementar',
+      decisionTaken: 'acordo',
+      status: 'validada',
+      finalValue: 10850,
+      outcome: 'finalizado_pelo_advogado',
+      effective: true,
+      justification: 'A faixa de acordo ficou aderente a memoria de calculo revisional e evitou litigio prolongado.',
+      publishedAt: new Date('2026-04-14T16:10:00.000Z'),
+    },
+    financialEstimate: {
+      label: 'Proveito economico estimado',
+      estimatedValue: 11900,
+      uncertaintyMin: 9500,
+      uncertaintyMax: 13000,
+      calculationBase: 'Revisao de encargos remuneratorios e exclusao de juros acima da taxa media BACEN.',
+      methodology: 'Cenario otimista/base/conservador com memoria de calculo anexada pelo perito contabil.',
+      documentsUsed: ['contrato_cedula_credito.pdf', 'planilha_evolucao_debito.xlsx', 'laudo_preliminar_contabil.pdf'],
+    },
+    consistencyIssues: [],
+    terminologyAlerts: [],
+    decisionTrail: [
+      {
+        type: 'recomendacao_inicial',
+        actor: 'sistema',
+        reason: 'Sugestao automatizada inicial com base no historico e documentos anexados.',
+        recommendationDecision: 'acordo',
+        recommendationConfidence: 0.73,
+        lawyerDecision: '',
+        createdAt: new Date('2026-04-10T14:00:00.000Z'),
+      },
+      {
+        type: 'decisao_humana_validada',
+        actor: 'advogado',
+        reason: 'Acordo alinhado ao risco financeiro e estrategia de encerramento eficiente.',
+        recommendationDecision: 'acordo',
+        recommendationConfidence: 0.73,
+        lawyerDecision: 'acordo',
+        createdAt: new Date('2026-04-14T16:10:00.000Z'),
+      },
+    ],
+    metadata: {
+      origins: buildOrigins(
+        new Date('2026-04-12T11:20:00.000Z'),
+        new Date('2026-04-10T14:00:00.000Z'),
+        new Date('2026-04-14T16:10:00.000Z'),
+      ),
+      confidenceByBlock: {
+        subjectClassification: 0.88,
+        financialEstimate: 0.81,
+        judicialPhase: 0.86,
+        suggestedThesis: 0.79,
+      },
+    },
+  },
+  {
+    processNumber: '1865002-22.2026.8.26.0002',
+    uf: 'SP',
+    subject: 'Dano moral',
+    subSubject: 'Negativacao indevida',
+    macroResult: 'Procedente',
+    microResult: 'Condenacao em danos morais',
+    claimValue: 22000,
+    condemnationValue: 12000,
+    status: 'decisao_validada',
+    judicialStatus: 'fase_recursal_confirmada',
+    judicialPhase: 'recurso',
+    internalStatus: 'decisao_validada',
+    actionClass: 'indenizatoria',
+    clientRole: 'autor',
+    suggestedThesis: 'sustentar dano moral com foco em prova documental de negativacao',
+    recommendation: {
+      decision: 'defesa',
+      suggestedValue: 0,
+      confidence: 0.7,
+      reasoning: 'A tese probatoria e robusta para manutencao da estrategia litigiosa ate julgamento recursal.',
+      status: 'preliminar',
+      generatedAt: new Date('2026-04-09T10:30:00.000Z'),
+      disclaimer: 'Esta e uma sugestao automatizada e nao substitui validacao do advogado responsavel.',
+    },
+    result: {
+      decisionTaken: 'defesa',
+      status: 'validada',
       finalValue: 0,
-      outcome: 'pendente',
-      effective: false,
+      outcome: 'estrategia_litigiosa_mantida',
+      effective: true,
+      justification: 'A defesa foi mantida por aderencia integral entre provas e jurisprudencia local.',
+      publishedAt: new Date('2026-04-13T15:00:00.000Z'),
+    },
+    financialEstimate: {
+      label: 'Indenizacao estimada',
+      estimatedValue: 12000,
+      uncertaintyMin: 9800,
+      uncertaintyMax: 13800,
+      calculationBase: 'Jurisprudencia regional para negativacao indevida e parametros de dano moral por faixa de impacto.',
+      methodology: 'Modelagem por precedentes similares com ajuste por tempo de restricao e dano comprovado.',
+      documentsUsed: ['consulta_serasa.pdf', 'comprovante_quitacao.pdf', 'peticao_inicial.pdf'],
+    },
+    consistencyIssues: [],
+    terminologyAlerts: [],
+    decisionTrail: [
+      {
+        type: 'recomendacao_inicial',
+        actor: 'sistema',
+        reason: 'Manter estrategia de defesa recursal.',
+        recommendationDecision: 'defesa',
+        recommendationConfidence: 0.7,
+        lawyerDecision: '',
+        createdAt: new Date('2026-04-09T10:30:00.000Z'),
+      },
+      {
+        type: 'decisao_humana_validada',
+        actor: 'advogado',
+        reason: 'Defesa validada pela consistencia probatoria e fase recursal.',
+        recommendationDecision: 'defesa',
+        recommendationConfidence: 0.7,
+        lawyerDecision: 'defesa',
+        createdAt: new Date('2026-04-13T15:00:00.000Z'),
+      },
+    ],
+    metadata: {
+      origins: buildOrigins(
+        new Date('2026-04-12T09:10:00.000Z'),
+        new Date('2026-04-09T10:30:00.000Z'),
+        new Date('2026-04-13T15:00:00.000Z'),
+      ),
+      confidenceByBlock: {
+        subjectClassification: 0.9,
+        financialEstimate: 0.77,
+        judicialPhase: 0.83,
+        suggestedThesis: 0.76,
+      },
+    },
+  },
+  {
+    processNumber: '1865003-33.2026.8.19.0003',
+    uf: 'RJ',
+    subject: 'Recuperacao de credito',
+    subSubject: 'Duplicata mercantil',
+    macroResult: 'Exito',
+    microResult: 'Acordo homologado',
+    claimValue: 45800,
+    condemnationValue: 0,
+    status: 'encerrado',
+    judicialStatus: 'transito_em_julgado',
+    judicialPhase: 'sentença',
+    internalStatus: 'encerrado',
+    actionClass: 'cobranca',
+    clientRole: 'autor',
+    suggestedThesis: 'encerramento com baixa apos cumprimento integral',
+    recommendation: {
+      decision: 'acordo',
+      suggestedValue: 45200,
+      confidence: 0.82,
+      reasoning: 'A composicao integral era o melhor caminho de recuperacao com menor tempo de ciclo.',
+      status: 'preliminar',
+      generatedAt: new Date('2026-04-02T13:40:00.000Z'),
+      disclaimer: 'Esta e uma sugestao automatizada e nao substitui validacao do advogado responsavel.',
+    },
+    result: {
+      decisionTaken: 'acordo',
+      status: 'validada',
+      finalValue: 45800,
+      outcome: 'encerrado_com_exito',
+      effective: true,
+      justification: 'Pagamento integral comprovado e homologacao sem pendencias residuais.',
+      publishedAt: new Date('2026-04-11T18:20:00.000Z'),
+    },
+    financialEstimate: {
+      label: 'Valor recuperavel estimado',
+      estimatedValue: 45200,
+      uncertaintyMin: 43000,
+      uncertaintyMax: 45800,
+      calculationBase: 'Historico de adimplemento do devedor e prova documental da duplicata.',
+      methodology: 'Modelo de recuperacao por faixa de risco com cenarios de acordo e execucao.',
+      documentsUsed: ['duplicata_mercantil.pdf', 'demonstrativo_atualizacao.xlsx', 'acordo_homologado.pdf'],
+    },
+    consistencyIssues: [],
+    terminologyAlerts: [],
+    decisionTrail: [
+      {
+        type: 'recomendacao_inicial',
+        actor: 'sistema',
+        reason: 'Acordo recomendado para maximizar recuperacao em menor prazo.',
+        recommendationDecision: 'acordo',
+        recommendationConfidence: 0.82,
+        lawyerDecision: '',
+        createdAt: new Date('2026-04-02T13:40:00.000Z'),
+      },
+      {
+        type: 'decisao_humana_validada',
+        actor: 'advogado',
+        reason: 'Acordo homologado e cumprido integralmente.',
+        recommendationDecision: 'acordo',
+        recommendationConfidence: 0.82,
+        lawyerDecision: 'acordo',
+        createdAt: new Date('2026-04-11T18:20:00.000Z'),
+      },
+    ],
+    metadata: {
+      origins: buildOrigins(
+        new Date('2026-04-11T18:20:00.000Z'),
+        new Date('2026-04-02T13:40:00.000Z'),
+        new Date('2026-04-11T18:20:00.000Z'),
+      ),
+      confidenceByBlock: {
+        subjectClassification: 0.86,
+        financialEstimate: 0.84,
+        judicialPhase: 0.91,
+        suggestedThesis: 0.81,
+      },
+    },
+  },
+  {
+    processNumber: '1865004-44.2026.8.03.0004',
+    uf: 'AP',
+    subject: 'Execucao fiscal',
+    subSubject: 'ISS',
+    macroResult: 'Nao exito',
+    microResult: 'Risco de penhora',
+    claimValue: 86300,
+    condemnationValue: 51200,
+    status: 'estrategia_revisada',
+    judicialStatus: 'fase_executiva_confirmada',
+    judicialPhase: 'instrução',
+    internalStatus: 'estrategia_revisada',
+    actionClass: 'cobranca',
+    clientRole: 'reu',
+    suggestedThesis: 'parcelamento com garantia para evitar constricao imediata',
+    recommendation: {
+      decision: 'acordo',
+      suggestedValue: 48000,
+      confidence: 0.69,
+      reasoning: 'Composicao com parcelamento reduz risco de atos executivos gravosos.',
+      status: 'preliminar',
+      generatedAt: new Date('2026-04-08T09:00:00.000Z'),
+      disclaimer: 'Esta e uma sugestao automatizada e nao substitui validacao do advogado responsavel.',
+    },
+    result: {
+      decisionTaken: 'acordo',
+      status: 'validada',
+      finalValue: 47600,
+      outcome: 'parcelamento_formalizado',
+      effective: true,
+      justification: 'Parcelamento formalizado dentro da capacidade financeira e com suspensao de atos executivos.',
+      publishedAt: new Date('2026-04-15T12:45:00.000Z'),
+    },
+    financialEstimate: {
+      label: 'Risco estimado de condenacao',
+      estimatedValue: 51200,
+      uncertaintyMin: 47000,
+      uncertaintyMax: 54000,
+      calculationBase: 'Debito executado, acrescimos legais e historico de deferimento de medidas constritivas.',
+      methodology: 'Cenario de risco financeiro em execucao fiscal com simulacao de parcelamento.',
+      documentsUsed: ['cda.pdf', 'extrato_debito_fiscal.pdf', 'minuta_parcelamento.pdf'],
+    },
+    consistencyIssues: [],
+    terminologyAlerts: [],
+    decisionTrail: [
+      {
+        type: 'recomendacao_inicial',
+        actor: 'sistema',
+        reason: 'Composicao recomendada para reduzir risco de penhora.',
+        recommendationDecision: 'acordo',
+        recommendationConfidence: 0.69,
+        lawyerDecision: '',
+        createdAt: new Date('2026-04-08T09:00:00.000Z'),
+      },
+      {
+        type: 'decisao_humana_validada',
+        actor: 'advogado',
+        reason: 'Parcelamento validado com suspensao de atos executivos.',
+        recommendationDecision: 'acordo',
+        recommendationConfidence: 0.69,
+        lawyerDecision: 'acordo',
+        createdAt: new Date('2026-04-15T12:45:00.000Z'),
+      },
+    ],
+    metadata: {
+      origins: buildOrigins(
+        new Date('2026-04-15T12:45:00.000Z'),
+        new Date('2026-04-08T09:00:00.000Z'),
+        new Date('2026-04-15T12:45:00.000Z'),
+      ),
+      confidenceByBlock: {
+        subjectClassification: 0.84,
+        financialEstimate: 0.8,
+        judicialPhase: 0.79,
+        suggestedThesis: 0.75,
+      },
     },
   },
 ]
 
 const runSeed = async () => {
   await connectDB()
+
   try {
-    const userIndexes = await User.collection.indexes()
-    const hasLegacyUsernameIndex = userIndexes.some((idx) => idx.name === 'username_1')
-    if (hasLegacyUsernameIndex) {
-      await User.collection.dropIndex('username_1')
-      console.log('Indice legado username_1 removido da colecao users.')
-    }
+    console.log('Limpando colecoes de usuarios e processos...')
+    await Promise.all([User.deleteMany({}), Case.deleteMany({})])
+
+    const users = await User.insertMany(sampleUsers)
+    console.log(`Usuarios inseridos: ${users.length}`)
+
+    const casesWithOwners = sampleCases.map((caseData, index) => ({
+      ...caseData,
+      assignedLawyerId: users[index % 2]._id,
+      createdAt: new Date(now.getTime() - (index + 3) * 86400000),
+      updatedAt: new Date(now.getTime() - index * 3600000),
+    }))
+
+    const createdCases = await Case.insertMany(casesWithOwners)
+    console.log(`Processos inseridos: ${createdCases.length}`)
+
+    console.log('Reset concluido: banco limpo e populado com exemplos completos sem pendencias.')
+    process.exit(0)
   } catch (error) {
-    console.log('Nao foi possivel remover indice legado username_1:', error.message)
+    console.error('Falha ao executar seed de reset:', error)
+    process.exit(1)
   }
-
-  const createdUsers = []
-  for (const userData of sampleUsers) {
-    let user = await User.findOne({ email: userData.email })
-    if (!user) {
-      user = await User.create(userData)
-      console.log(`Criado usuario: ${user.email}`)
-    } else {
-      console.log(`Usuario ja existe: ${user.email}`)
-    }
-    createdUsers.push(user)
-  }
-
-  const caseExamples = sampleCases.map((caseData, index) => ({
-    ...caseData,
-    assignedLawyerId: createdUsers[index % createdUsers.length]._id,
-  }))
-
-  for (const caseData of caseExamples) {
-    const existingCase = await Case.findOne({ processNumber: caseData.processNumber })
-    if (existingCase) {
-      console.log(`Processo ja existe: ${caseData.processNumber}`)
-      continue
-    }
-
-    const createdCase = await Case.create(caseData)
-    console.log(`Criado processo: ${createdCase.processNumber}`)
-  }
-
-  console.log('Seed de advogados e processos finalizada.')
-  process.exit(0)
 }
 
-runSeed().catch((error) => {
-  console.error('Falha ao executar seed:', error)
-  process.exit(1)
-})
+runSeed()

@@ -359,6 +359,7 @@ export default function HomeScreen() {
     const requestContext = {
       key: activeChatContext.key,
       type: activeChatContext.type,
+      id: activeChatContext.id,
       label: activeChatContext.label,
     }
 
@@ -380,6 +381,7 @@ export default function HomeScreen() {
       const response = await sendChatMessage({
         message,
         history,
+        context: requestContext,
       })
 
       const assistantReply = typeof response?.reply === 'string' ? response.reply.trim() : ''

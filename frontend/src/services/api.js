@@ -9,8 +9,8 @@ const api = axios.create({
   },
 })
 
-export async function sendChatMessage({ message, history = [] }) {
-  const response = await api.post('/chat', { message, history })
+export async function sendChatMessage({ message, history = [], context = null }) {
+  const response = await api.post('/chat', { message, history, context })
   return response.data
 }
 
@@ -37,6 +37,16 @@ export async function fetchCases() {
 
 export async function fetchCaseById(caseId) {
   const response = await api.get(`/cases/${caseId}`)
+  return response.data
+}
+
+export async function fetchCaseRecommendation(caseId) {
+  const response = await api.get(`/cases/${caseId}/recommendation`)
+  return response.data
+}
+
+export async function finalizeCaseResult(caseId, payload) {
+  const response = await api.post(`/cases/${caseId}/finalize`, payload)
   return response.data
 }
 
