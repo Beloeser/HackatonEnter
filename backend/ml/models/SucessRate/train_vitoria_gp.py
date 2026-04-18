@@ -4,6 +4,7 @@ import os
 from dataclasses import asdict, dataclass
 from typing import List, Tuple
 
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -24,6 +25,7 @@ class TrainReport:
     status: str
     input_file: str
     predictions_csv_path: str
+    model_path: str
     n_rows_total: int
     n_rows_filtered_out: int
     n_rows_used: int
@@ -194,6 +196,11 @@ def main() -> int:
         help="CSV com taxa_vitoria, incerteza e valor_da_causa para uso em novos treinamentos.",
     )
     parser.add_argument(
+        "--model-out",
+        default=os.path.join("db", "processed", "gp_vitoria_model.joblib"),
+        help="Arquivo joblib para persistir o pipeline treinado e metadados de inferência.",
+    )
+    parser.add_argument(
         "--target-mode",
         default="vitoria_macro",
         choices=["vitoria_macro", "severidade_micro"],
@@ -286,6 +293,19 @@ def main() -> int:
     )
     pipe.fit(X_fit, y_fit)
 
+    model_payload = {
+        "pipeline": pipe,
+        "target_mode": args.target_mode,
+        "features_categorical": categorical_cols,
+        "features_numeric": numeric_cols,
+        "categorical_encoding": args.categorical_encoding,
+        "positive_label": args.positive_label,
+        "micro_mapping": micro_mapping,
+        "subsidio_columns": SUBSIDIO_COLUMNS,
+    }
+    os.makedirs(os.path.dirname(args.model_out) or ".", exist_ok=True)
+    joblib.dump(model_payload, args.model_out)
+
     proba, std = _predict_proba_with_uncertainty(pipe, X_test)
     metrics = {"mean_std": float(np.mean(std))}
     if args.target_mode == "vitoria_macro":
@@ -322,6 +342,7 @@ def main() -> int:
         status="success",
         input_file=input_file,
         predictions_csv_path=args.predictions_csv_out,
+        model_path=args.model_out,
         n_rows_total=n_total,
         n_rows_filtered_out=n_filtered_out,
         n_rows_used=int(len(X_fit)),

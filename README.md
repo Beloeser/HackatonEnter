@@ -145,7 +145,8 @@ Colunas principais:
 ```bash
 .venv/bin/python backend/ml/models/SucessRate/train_vitoria_gp.py \
   --input-file db/raw/Hackaton_Enter_Base_Candidatos.csv \
-  --predictions-csv-out db/processed/gp_treino_resultados.csv
+  --predictions-csv-out db/processed/gp_treino_resultados.csv \
+  --model-out db/processed/gp_vitoria_model.joblib
 ```
 
 Para treino rápido (ambiente limitado):
@@ -153,6 +154,7 @@ Para treino rápido (ambiente limitado):
 .venv/bin/python backend/ml/models/SucessRate/train_vitoria_gp.py \
   --input-file db/raw/Hackaton_Enter_Base_Candidatos.csv \
   --predictions-csv-out db/processed/gp_treino_resultados.csv \
+  --model-out db/processed/gp_vitoria_model.joblib \
   --max-train-rows 500
 ```
 
@@ -244,7 +246,8 @@ Parâmetros do script e impacto prático:
 # 2) Treino da vitória (GP)
 .venv/bin/python backend/ml/models/SucessRate/train_vitoria_gp.py \
   --input-file db/raw/Hackaton_Enter_Base_Candidatos.csv \
-  --predictions-csv-out db/processed/gp_treino_resultados.csv
+  --predictions-csv-out db/processed/gp_treino_resultados.csv \
+  --model-out db/processed/gp_vitoria_model.joblib
 
 # 3) Otimização do acordo (sem GP)
 .venv/bin/python backend/ml/models/Acordo/train_acordo_gp.py \
@@ -260,12 +263,33 @@ Use este fluxo quando quiser gerar CSVs atualizados rapidamente para commit/push
 .venv/bin/python backend/ml/models/SucessRate/train_vitoria_gp.py \
   --input-file db/raw/Hackaton_Enter_Base_Candidatos.csv \
   --predictions-csv-out db/processed/gp_treino_resultados.csv \
+  --model-out db/processed/gp_vitoria_model.joblib \
   --max-train-rows 500
 
 # 2) Atualiza acordo com base no CSV acima
 .venv/bin/python backend/ml/models/Acordo/train_acordo_gp.py \
   --input-csv db/processed/gp_treino_resultados.csv \
   --output-csv db/processed/gp_acordo_treino_resultados.csv
+```
+
+## Análise de Contrato Novo (Inferência)
+Script: `backend/ml/analise.py`
+
+Objetivo: usar o modelo de vitória já treinado para 1 contrato novo, calcular `taxa_vitoria`, `valor_acordo_proposto` e retornar recomendação final (`Buscar acordo` ou `Ir para defesa`).
+
+Exemplo (modelo já treinado):
+```bash
+.venv/bin/python backend/ml/analise.py \
+  --model-file db/processed/gp_vitoria_model.joblib \
+  --contrato-json '{"Número do processo":"9999999-99.2026.8.01.0001","Contrato":1,"Extrato":1,"Comprovante de crédito":0,"Dossiê":1,"Demonstrativo de evolução da dívida":1,"Laudo referenciado":0,"Sub-assunto":"Golpe","Valor da causa":12000}'
+```
+
+Exemplo (treina fallback se não existir modelo):
+```bash
+.venv/bin/python backend/ml/analise.py \
+  --model-file db/processed/gp_vitoria_model.joblib \
+  --train-if-missing \
+  --max-train-rows 500
 ```
 
 ## Como Ler Linhas Específicas de Resultado
@@ -293,3 +317,50 @@ sed -n '1009p' db/processed/gp_treino_resultados.csv
 
 ## Sobre o Nome da Pasta `SucessRate`
 A pasta está nomeada como `SucessRate` no código atual para manter compatibilidade com os scripts já em uso. Se quiser padronizar para `SuccessRate`, faça o rename com ajuste de caminhos.
+
+## Endpoints Backend para o Front
+Com o backend rodando (`cd backend && npm run dev`), os endpoints disponíveis são:
+
+### 1) Listar contratos em andamento
+`GET /api/analise/contratos-em-andamento`
+
+Resposta exemplo:
+```json
+{
+  "success": true,
+  "total": 10,
+  "contratos": [
+    {
+      "indice": 0,
+      "numero_processo": "1803258-78.2026.8.18.4949",
+      "sub_assunto": "Golpe",
+      "valor_da_causa": 19553.37
+    }
+  ]
+}
+```
+
+### 2) Analisar contrato selecionado
+`POST /api/analise/analisar-contrato`
+
+Body (por índice):
+```json
+{ "indice": 0 }
+```
+
+Body (por número do processo):
+```json
+{ "numeroProcesso": "6957247-73.2026.8.05.9104" }
+```
+
+Resposta padrão (resumo):
+```json
+{
+  "success": true,
+  "resultado": {
+    "taxa_probabilidade_vitoria": 60.3,
+    "fazer_acordo": true,
+    "valor_acordo_justo": 5132.23
+  }
+}
+```
