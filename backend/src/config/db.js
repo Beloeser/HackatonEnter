@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/hackathon_mvp'
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI
 
 const connectDB = async () => {
   try {
