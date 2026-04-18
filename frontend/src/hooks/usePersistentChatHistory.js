@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 const STORAGE_KEY = 'coffeebreakers.chat.history.v1'
 const MAX_MESSAGES_PER_CONTEXT = 80
 const ALLOWED_ROLES = new Set(['assistant', 'user'])
+let hasResetHistoryForPageLoad = false
 
 function createMessageId(prefix = 'msg') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -62,6 +63,12 @@ function parseStoredHistory() {
   }
 
   try {
+    if (!hasResetHistoryForPageLoad) {
+      // Regra solicitada: ao recarregar a pagina, o chat deve iniciar limpo.
+      window.localStorage.removeItem(STORAGE_KEY)
+      hasResetHistoryForPageLoad = true
+    }
+
     const raw = window.localStorage.getItem(STORAGE_KEY)
 
     if (!raw) {
@@ -175,4 +182,3 @@ export function usePersistentChatHistory({ contextKey, contextType, contextLabel
     updateMessagesForContext,
   }
 }
-

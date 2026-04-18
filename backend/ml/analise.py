@@ -9,6 +9,7 @@ Fluxo de análise para contrato novo:
 import argparse
 import json
 import os
+from math import ceil
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Tuple
 
@@ -20,6 +21,7 @@ from models.Acordo.train_acordo_gp import _otimizar_um_caso
 from models.SucessRate.train_vitoria_gp import (
     SUBSIDIO_COLUMNS,
     _add_quantidade_subsidios,
+    _aplicar_regra_subsidios,
     _build_pipeline,
     _load_dataset,
     _predict_proba_with_uncertainty,
@@ -208,6 +210,7 @@ def _treinar_modelo_vitoria(
     positive_label: str,
     micro_mapping: dict,
     categorical_encoding: str,
+    penalidade_por_subsidio: float,
     exclude_resultado_micro: str,
     max_train_rows: int,
     random_state: int,
@@ -223,7 +226,7 @@ def _treinar_modelo_vitoria(
 
     target_col = "Resultado macro" if target_mode == "vitoria_macro" else "Resultado micro"
     categorical_cols = ["Sub-assunto"]
-    numeric_cols = ["Valor da causa", "quantidade_subsidios"]
+    numeric_cols = ["Valor da causa"]
 
     X, y = _prepare_xy(
         df,
@@ -235,24 +238,68 @@ def _treinar_modelo_vitoria(
         numeric_cols=numeric_cols,
     )
 
-    if max_train_rows and max_train_rows > 0 and len(X) > max_train_rows:
-        rng = np.random.default_rng(random_state)
-        idx = rng.choice(len(X), size=max_train_rows, replace=False)
-        X_fit = X.iloc[idx]
-        y_fit = y[idx]
-    else:
-        X_fit = X
-        y_fit = y
+    chunk_size = int(max_train_rows) if max_train_rows and max_train_rows > 0 else len(X)
+    chunk_size = max(1, chunk_size)
 
-    pipe = _build_pipeline(categorical_cols, numeric_cols, categorical_encoding=categorical_encoding)
-    pipe.fit(X_fit, y_fit)
+    pipelines = []
+    if len(X) > chunk_size:
+        # Usa todo o dataset treinando vários GPs menores (mixture/ensemble de especialistas).
+        # Isso evita estouro de memória do GP único e preserva o uso do algoritmo GP.
+        n_chunks = int(ceil(len(X) / chunk_size))
+        rng = np.random.default_rng(random_state)
+        all_idx = np.arange(len(X))
+        rng.shuffle(all_idx)
+
+        if target_mode == "vitoria_macro":
+            pos_idx = all_idx[y[all_idx] >= 0.5]
+            neg_idx = all_idx[y[all_idx] < 0.5]
+            chunk_lists = [[] for _ in range(n_chunks)]
+
+            for i, idx in enumerate(pos_idx):
+                chunk_lists[i % n_chunks].append(int(idx))
+            for i, idx in enumerate(neg_idx):
+                chunk_lists[i % n_chunks].append(int(idx))
+
+            chunk_indices = []
+            for items in chunk_lists:
+                if not items:
+                    continue
+                arr = np.array(items, dtype=int)
+                rng.shuffle(arr)
+                chunk_indices.append(arr)
+        else:
+            chunk_indices = [all_idx[i : i + chunk_size] for i in range(0, len(all_idx), chunk_size)]
+
+        for idx_chunk in chunk_indices:
+            X_fit = X.iloc[idx_chunk]
+            y_fit = y[idx_chunk]
+            pipe = _build_pipeline(
+                categorical_cols,
+                numeric_cols,
+                categorical_encoding=categorical_encoding,
+            )
+            pipe.fit(X_fit, y_fit)
+            pipelines.append(pipe)
+    else:
+        pipe = _build_pipeline(
+            categorical_cols,
+            numeric_cols,
+            categorical_encoding=categorical_encoding,
+        )
+        pipe.fit(X, y)
+        pipelines.append(pipe)
 
     payload = {
-        "pipeline": pipe,
+        "pipeline": pipelines[0],
+        "pipelines": pipelines,
+        "ensemble_size": int(len(pipelines)),
+        "chunk_size": int(chunk_size),
+        "n_rows_total": int(len(X)),
         "target_mode": target_mode,
         "features_categorical": categorical_cols,
         "features_numeric": numeric_cols,
         "subsidio_columns": SUBSIDIO_COLUMNS,
+        "penalidade_por_subsidio": float(penalidade_por_subsidio),
     }
 
     os.makedirs(os.path.dirname(model_file) or ".", exist_ok=True)
@@ -262,21 +309,30 @@ def _treinar_modelo_vitoria(
 
 def _carregar_modelo(model_file: str) -> Dict[str, Any]:
     raw = joblib.load(model_file)
-    if isinstance(raw, dict) and "pipeline" in raw:
+    if isinstance(raw, dict) and ("pipeline" in raw or "pipelines" in raw):
         payload = raw
     else:
         payload = {
             "pipeline": raw,
+            "pipelines": [raw],
+            "ensemble_size": 1,
+            "chunk_size": None,
+            "n_rows_total": None,
             "target_mode": "vitoria_macro",
             "features_categorical": ["Sub-assunto"],
-            "features_numeric": ["Valor da causa", "quantidade_subsidios"],
+            "features_numeric": ["Valor da causa"],
             "subsidio_columns": SUBSIDIO_COLUMNS,
         }
 
+    if "pipelines" not in payload:
+        payload["pipelines"] = [payload["pipeline"]] if payload.get("pipeline") is not None else []
+
     payload.setdefault("target_mode", "vitoria_macro")
     payload.setdefault("features_categorical", ["Sub-assunto"])
-    payload.setdefault("features_numeric", ["Valor da causa", "quantidade_subsidios"])
+    payload.setdefault("features_numeric", ["Valor da causa"])
     payload.setdefault("subsidio_columns", SUBSIDIO_COLUMNS)
+    payload.setdefault("penalidade_por_subsidio", 0.10)
+    payload.setdefault("ensemble_size", len(payload.get("pipelines", [])) or 1)
     return payload
 
 
@@ -302,9 +358,30 @@ def _prever_chance_vitoria(model_payload: Dict[str, Any], contrato: Dict[str, An
         X_new[c] = pd.to_numeric(X_new[c], errors="coerce")
     X_new = X_new.fillna(0)
 
-    proba, std = _predict_proba_with_uncertainty(model_payload["pipeline"], X_new)
-    taxa_vitoria = float(_to_taxa_vitoria(proba, target_mode)[0])
-    incerteza = float(std[0])
+    pipelines = [p for p in model_payload.get("pipelines", []) if p is not None]
+    if not pipelines:
+        pipeline = model_payload.get("pipeline")
+        if pipeline is None:
+            raise ValueError("Modelo carregado sem pipeline para inferência.")
+        pipelines = [pipeline]
+
+    taxas = []
+    stds = []
+    for pipe in pipelines:
+        proba, std = _predict_proba_with_uncertainty(pipe, X_new)
+        taxas.append(float(_to_taxa_vitoria(proba, target_mode)[0]))
+        stds.append(float(std[0]))
+
+    taxa_vitoria_base = np.array([float(np.mean(taxas))], dtype=float)
+    qtd_subsidios = pd.to_numeric(one["quantidade_subsidios"], errors="coerce").fillna(0.0).to_numpy()
+    taxa_vitoria = float(
+        _aplicar_regra_subsidios(
+            taxa_vitoria_base,
+            qtd_subsidios,
+            float(model_payload.get("penalidade_por_subsidio", 0.10)),
+        )[0]
+    )
+    incerteza = float(np.sqrt(np.mean(np.square(stds))))
     return taxa_vitoria, incerteza
 
 
@@ -371,14 +448,33 @@ def main() -> int:
     parser.add_argument("--force-retrain", action="store_true", help="Ignora modelo salvo e treina novamente.")
 
     parser.add_argument("--target-mode", default="vitoria_macro", choices=["vitoria_macro", "severidade_micro"])
-    parser.add_argument("--positive-label", default="Êxito")
+    parser.add_argument("--positive-label", default="Não Êxito")
     parser.add_argument(
         "--micro-mapping",
         default='{"Improcedência": 0, "Parcial procedência": 0.5, "Procedência": 1, "Acordo": 0.5}',
     )
     parser.add_argument("--categorical-encoding", default="ordinal", choices=["ordinal", "onehot"])
+    parser.add_argument(
+        "--penalidade-por-subsidio",
+        type=float,
+        default=0.10,
+        help=(
+            "Penalidade multiplicativa aplicada à chance de vitória para cada subsídio. "
+            "Exemplo: 0.10 reduz 10% da chance por subsídio."
+        ),
+    )
+    # Compatibilidade com comandos antigos (mantido sem efeito direto).
+    parser.add_argument("--quantidade-subsidios-weight", type=float, default=None, help=argparse.SUPPRESS)
     parser.add_argument("--exclude-resultado-micro", default="Extinção")
-    parser.add_argument("--max-train-rows", type=int, default=5000)
+    parser.add_argument(
+        "--max-train-rows",
+        type=int,
+        default=5000,
+        help=(
+            "Tamanho máximo por GP especialista. "
+            "Se a base for maior, o sistema treina ensemble de GPs para usar todos os dados."
+        ),
+    )
     parser.add_argument("--random-state", type=int, default=42)
 
     parser.add_argument("--alpha", type=float, default=0.7)
@@ -431,6 +527,7 @@ def main() -> int:
             positive_label=args.positive_label,
             micro_mapping=micro_mapping,
             categorical_encoding=args.categorical_encoding,
+            penalidade_por_subsidio=args.penalidade_por_subsidio,
             exclude_resultado_micro=args.exclude_resultado_micro,
             max_train_rows=args.max_train_rows,
             random_state=args.random_state,

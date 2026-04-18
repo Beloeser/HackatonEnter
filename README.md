@@ -364,3 +364,20 @@ Resposta padrão (resumo):
   }
 }
 ```
+
+### 3) Chat com contexto de contratos
+`POST /api/chat`
+
+Body:
+```json
+{
+  "message": "Vale a pena acordo nesse processo?",
+  "history": [
+    { "role": "user", "content": "..." },
+    { "role": "assistant", "content": "..." }
+  ],
+  "contractNumbers": ["1803258-78.2026.8.18.4949"]
+}
+```
+
+Com `contractNumbers`, o backend consulta a análise (`taxa_probabilidade_vitoria`, `fazer_acordo`, `valor_acordo_justo`) e injeta esse histórico no prompt da IA para responder defendendo a recomendação.

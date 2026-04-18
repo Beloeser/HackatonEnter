@@ -9,8 +9,23 @@ const api = axios.create({
   },
 })
 
-export async function sendChatMessage({ message, history = [] }) {
-  const response = await api.post('/chat', { message, history })
+export async function sendChatMessage({
+  message,
+  history = [],
+  contractNumbers = [],
+  contratosCsv,
+}) {
+  const payload = {
+    message,
+    history,
+    contractNumbers,
+  }
+
+  if (typeof contratosCsv === 'string' && contratosCsv.trim()) {
+    payload.contratosCsv = contratosCsv.trim()
+  }
+
+  const response = await api.post('/chat', payload)
   return response.data
 }
 

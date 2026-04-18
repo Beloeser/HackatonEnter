@@ -8,6 +8,7 @@ dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3000
+const REQUIRE_DB = String(process.env.REQUIRE_DB || 'false').toLowerCase() === 'true'
 
 // Middlewares
 app.use(cors())
@@ -22,7 +23,16 @@ app.get('/health', (req, res) => {
 app.use('/api', routes)
 
 const startServer = async () => {
-  await connectDB()
+  try {
+    await connectDB()
+  } catch (error) {
+    if (REQUIRE_DB) {
+      throw error
+    }
+
+    console.warn(`Aviso: backend iniciado sem conexao com MongoDB (${error.message}).`)
+  }
+
   app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`)
   })

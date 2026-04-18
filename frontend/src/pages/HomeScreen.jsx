@@ -21,7 +21,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 1,
     folderId: 0,
-    title: 'Processo 0001234-56.2026.8.26.0100',
+    title: 'Processo 1803258-78.2026.8.18.4949',
     type: 'Acao Civil Publica',
     date: '15/04/2026',
     status: 'Em andamento',
@@ -29,7 +29,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 2,
     folderId: 0,
-    title: 'Processo 0001388-31.2026.8.26.0100',
+    title: 'Processo 8727380-45.2026.8.23.5908',
     type: 'Execucao Fiscal',
     date: '14/04/2026',
     status: 'Audiencia marcada',
@@ -37,7 +37,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 3,
     folderId: 0,
-    title: 'Processo 0001420-22.2026.8.26.0100',
+    title: 'Processo 7839094-27.2026.8.10.5200',
     type: 'Acao de Cobranca',
     date: '14/04/2026',
     status: 'Contestacao apresentada',
@@ -45,7 +45,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 4,
     folderId: 0,
-    title: 'Processo 0001499-08.2026.8.26.0100',
+    title: 'Processo 1394233-39.2026.8.07.6079',
     type: 'Cumprimento de Sentenca',
     date: '13/04/2026',
     status: 'Em diligencia',
@@ -53,7 +53,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 5,
     folderId: 0,
-    title: 'Processo 0001550-90.2026.8.26.0100',
+    title: 'Processo 8494629-27.2026.8.22.1066',
     type: 'Acao Monitora',
     date: '12/04/2026',
     status: 'Pericia designada',
@@ -61,7 +61,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 6,
     folderId: 0,
-    title: 'Processo 0001625-64.2026.8.26.0100',
+    title: 'Processo 8082318-17.2026.8.21.6170',
     type: 'Acao Trabalhista',
     date: '11/04/2026',
     status: 'Aguardando audiencia',
@@ -69,7 +69,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 7,
     folderId: 1,
-    title: 'Processo 0007890-12.2026.8.26.0224',
+    title: 'Processo 8701036-35.2026.8.25.3642',
     type: 'Recurso de Apelacao',
     date: '14/04/2026',
     status: 'Aguardando analise',
@@ -77,7 +77,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 8,
     folderId: 1,
-    title: 'Processo 0007902-45.2026.8.26.0224',
+    title: 'Processo 6957247-73.2026.8.05.9104',
     type: 'Embargos de Declaracao',
     date: '13/04/2026',
     status: 'Em triagem',
@@ -85,7 +85,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 9,
     folderId: 1,
-    title: 'Processo 0007920-61.2026.8.26.0224',
+    title: 'Processo 4296371-90.2026.8.14.7296',
     type: 'Agravo de Instrumento',
     date: '13/04/2026',
     status: 'Analise documental',
@@ -93,7 +93,7 @@ const DOCUMENT_MOCKS = [
   {
     id: 10,
     folderId: 1,
-    title: 'Processo 0007954-73.2026.8.26.0224',
+    title: 'Processo 3392829-81.2026.8.16.5921',
     type: 'Acao de Indenizacao',
     date: '12/04/2026',
     status: 'Revisao juridica',
@@ -293,6 +293,14 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+const PROCESS_NUMBER_REGEX = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/
+
+function extractProcessNumberFromText(value) {
+  const text = String(value || '')
+  const match = text.match(PROCESS_NUMBER_REGEX)
+  return match ? match[0] : null
+}
+
 export default function HomeScreen() {
   const [selectedFolder, setSelectedFolder] = useState(0)
   const [selectedDocumentId, setSelectedDocumentId] = useState(null)
@@ -429,6 +437,21 @@ export default function HomeScreen() {
       role: item.role,
       content: item.content,
     }))
+    const contractNumbers = []
+
+    if (selectedDocument) {
+      const processNumber = extractProcessNumberFromText(selectedDocument.title)
+      if (processNumber) {
+        contractNumbers.push(processNumber)
+      }
+    } else {
+      for (const document of documentsForSelectedFolder) {
+        const processNumber = extractProcessNumberFromText(document.title)
+        if (processNumber) {
+          contractNumbers.push(processNumber)
+        }
+      }
+    }
 
     updateMessagesForContext(requestContext, (currentMessages) => [
       ...currentMessages,
@@ -443,6 +466,7 @@ export default function HomeScreen() {
       const response = await sendChatMessage({
         message,
         history,
+        contractNumbers,
       })
 
       const assistantReply = typeof response?.reply === 'string' ? response.reply.trim() : ''

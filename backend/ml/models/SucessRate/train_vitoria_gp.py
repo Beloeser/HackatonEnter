@@ -112,7 +112,10 @@ def _prepare_xy(
 
 
 def _build_pipeline(
-    categorical_cols: List[str], numeric_cols: List[str], *, categorical_encoding: str
+    categorical_cols: List[str],
+    numeric_cols: List[str],
+    *,
+    categorical_encoding: str,
 ) -> Pipeline:
     if categorical_encoding not in {"ordinal", "onehot"}:
         raise ValueError("--categorical-encoding deve ser 'ordinal' ou 'onehot'")
@@ -177,6 +180,19 @@ def _to_taxa_vitoria(score: np.ndarray, target_mode: str) -> np.ndarray:
     return np.clip(score, 0.0, 1.0)
 
 
+def _aplicar_regra_subsidios(
+    taxa_vitoria: np.ndarray, quantidade_subsidios: np.ndarray, penalidade_por_subsidio: float
+) -> np.ndarray:
+    """
+    Regra de negócio obrigatória:
+    quanto mais subsídios, menor a chance de vitória.
+    """
+    taxa = np.clip(np.asarray(taxa_vitoria, dtype=float), 0.0, 1.0)
+    qtd = np.clip(np.asarray(quantidade_subsidios, dtype=float), 0.0, float(len(SUBSIDIO_COLUMNS)))
+    fator = 1.0 - float(penalidade_por_subsidio) * qtd
+    return np.clip(taxa * fator, 0.0, 1.0)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Treina GP para chance de vitória (Êxito).")
     parser.add_argument(
@@ -214,8 +230,8 @@ def main() -> int:
         default=None,
         help="Coluna alvo. Se omitido: Resultado macro (vitoria_macro) ou Resultado micro (severidade_micro).",
     )
-    # Nesta base, "Êxito" representa êxito do banco (classe positiva).
-    parser.add_argument("--positive-label", default="Êxito")
+    # Nesta base, usamos "Não Êxito" como vitória nossa (classe positiva).
+    parser.add_argument("--positive-label", default="Não Êxito")
     parser.add_argument(
         "--micro-mapping",
         default='{"Improcedência": 0, "Parcial procedência": 0.5, "Procedência": 1, "Acordo": 0.5}',
@@ -237,9 +253,20 @@ def main() -> int:
     parser.add_argument(
         "--max-train-rows",
         type=int,
-        default=5000,
+        default=300,
         help="Limite de linhas para treinar o GP (por performance). Use 0 para usar tudo (pode ser impraticável).",
     )
+    parser.add_argument(
+        "--penalidade-por-subsidio",
+        type=float,
+        default=0.05,
+        help=(
+            "Penalidade multiplicativa aplicada à chance de vitória para cada subsídio. "
+            "Exemplo: 0.05 reduz 05% da chance por subsídio."
+        ),
+    )
+    # Compatibilidade com comandos antigos (mantido sem efeito direto).
+    parser.add_argument("--quantidade-subsidios-weight", type=float, default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
     micro_mapping = json.loads(args.micro_mapping)
     if args.target_col is None:
@@ -256,13 +283,13 @@ def main() -> int:
         n_filtered_out = int(mask_exclude.sum())
         df = df.loc[~mask_exclude].reset_index(drop=True)
 
-    # Features: subsídios entram só como quantidade total (soma dos bits), não coluna a coluna.
+    # Features de modelo: removemos quantidade_subsidios do modelo base.
+    # A regra de subsídios será aplicada depois da predição (regra de negócio obrigatória).
     df = _add_quantidade_subsidios(df)
 
     categorical_cols = ["Sub-assunto"]
     numeric_cols = [
         "Valor da causa",
-        "quantidade_subsidios",
     ]
 
     X, y = _prepare_xy(
@@ -289,7 +316,9 @@ def main() -> int:
         y_fit = y_train
 
     pipe = _build_pipeline(
-        categorical_cols, numeric_cols, categorical_encoding=args.categorical_encoding
+        categorical_cols,
+        numeric_cols,
+        categorical_encoding=args.categorical_encoding,
     )
     pipe.fit(X_fit, y_fit)
 
@@ -302,29 +331,39 @@ def main() -> int:
         "positive_label": args.positive_label,
         "micro_mapping": micro_mapping,
         "subsidio_columns": SUBSIDIO_COLUMNS,
+        "penalidade_por_subsidio": float(args.penalidade_por_subsidio),
     }
     os.makedirs(os.path.dirname(args.model_out) or ".", exist_ok=True)
     joblib.dump(model_payload, args.model_out)
 
     proba, std = _predict_proba_with_uncertainty(pipe, X_test)
+    qtd_test = pd.to_numeric(df.loc[X_test.index, "quantidade_subsidios"], errors="coerce").fillna(0.0).to_numpy()
+    taxa_vitoria_test = _to_taxa_vitoria(proba, args.target_mode)
+    taxa_vitoria_test = _aplicar_regra_subsidios(
+        taxa_vitoria_test, qtd_test, args.penalidade_por_subsidio
+    )
     metrics = {"mean_std": float(np.mean(std))}
     if args.target_mode == "vitoria_macro":
-        y_pred = (proba >= 0.5).astype(float)
+        y_pred = (taxa_vitoria_test >= 0.5).astype(float)
         metrics.update(
             {
-                "roc_auc": float(roc_auc_score(y_test, proba)),
+                "roc_auc": float(roc_auc_score(y_test, taxa_vitoria_test)),
                 "accuracy@0.5": float(accuracy_score(y_test, y_pred)),
-                "brier": float(brier_score_loss(y_test, proba)),
+                "brier": float(brier_score_loss(y_test, taxa_vitoria_test)),
             }
         )
     else:
         # severidade_micro: não é classificação; métricas de calibração/erro simples
-        mse = float(np.mean((proba - y_test) ** 2))
-        mae = float(np.mean(np.abs(proba - y_test)))
+        mse = float(np.mean((taxa_vitoria_test - y_test) ** 2))
+        mae = float(np.mean(np.abs(taxa_vitoria_test - y_test)))
         metrics.update({"mse": mse, "mae": mae})
 
     proba_all, std_all = _predict_proba_with_uncertainty(pipe, X)
+    qtd_all = pd.to_numeric(df["quantidade_subsidios"], errors="coerce").fillna(0.0).to_numpy()
     taxa_vitoria_all = _to_taxa_vitoria(proba_all, args.target_mode)
+    taxa_vitoria_all = _aplicar_regra_subsidios(
+        taxa_vitoria_all, qtd_all, args.penalidade_por_subsidio
+    )
     valor_da_causa = pd.to_numeric(df.get("Valor da causa", 0), errors="coerce").fillna(0.0)
     predictions_df = pd.DataFrame(
         {
