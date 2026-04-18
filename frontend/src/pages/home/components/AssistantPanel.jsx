@@ -4,6 +4,8 @@ import { Send, Sparkles, User } from 'lucide-react'
 
 const Panel = styled.aside`
   display: flex;
+  height: 100%;
+  max-height: 100%;
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -259,12 +261,19 @@ export default function AssistantPanel({
   contextLabel,
   contextDescription,
 }) {
-  const bottomRef = useRef(null)
+  const bodyRef = useRef(null)
 
   const canSend = useMemo(() => inputValue.trim().length > 0 && !isLoading, [inputValue, isLoading])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!bodyRef.current) {
+      return
+    }
+
+    bodyRef.current.scrollTo({
+      top: bodyRef.current.scrollHeight,
+      behavior: 'smooth',
+    })
   }, [messages, isLoading])
 
   if (!isOpen) {
@@ -289,7 +298,7 @@ export default function AssistantPanel({
         </CloseButton>
       </Header>
 
-      <Body>
+      <Body ref={bodyRef}>
         <MessageStack>
           {messages.map((message) => {
             if (message.role === 'assistant') {
@@ -324,7 +333,7 @@ export default function AssistantPanel({
             </BotMessageRow>
           )}
 
-          <BottomAnchor ref={bottomRef} />
+          <BottomAnchor />
         </MessageStack>
       </Body>
 

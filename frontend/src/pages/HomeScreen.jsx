@@ -24,9 +24,11 @@ const PageGrid = styled.div`
     $chatOpen ? '76px 360px minmax(0, 1fr) minmax(340px, 420px)' : '76px 360px minmax(0, 1fr)'};
   grid-template-rows: 96px minmax(0, 1fr);
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   min-width: 0;
-  min-height: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
   background: #f3f4f6;
 `
@@ -34,8 +36,10 @@ const PageGrid = styled.div`
 const DashboardChatSlot = styled.div`
   grid-column: 4;
   grid-row: 2;
+  display: flex;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 `
 
 function createChatMessage(role, content) {
