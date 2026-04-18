@@ -1,10 +1,10 @@
 ﻿import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
-import { Settings, User, Shield } from 'lucide-react'
+import { Home, User, Shield } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { id: 'settings', label: 'Configuracoes', icon: Settings },
-  { id: 'admin', label: 'Admin', icon: Shield }
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'admin', label: 'Admin', icon: Shield },
 ]
 
 const Sidebar = styled.aside`
@@ -46,7 +46,7 @@ const Nav = styled.nav`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 48px;
+  gap: 36px;
 `
 
 const NavButton = styled.button`
@@ -86,7 +86,6 @@ const NavButton = styled.button`
 export default function HomeSidebar({ activeItem, onSelectItem }) {
   const navigate = useNavigate()
 
-  // Check if user is admin
   const userStr = localStorage.getItem('user')
   const user = userStr ? JSON.parse(userStr) : null
   const isAdmin = user?.role === 'admin'
@@ -94,9 +93,11 @@ export default function HomeSidebar({ activeItem, onSelectItem }) {
   const handleItemClick = (itemId) => {
     if (itemId === 'admin') {
       navigate('/admin/dashboard')
-    } else {
-      onSelectItem(itemId)
+      return
     }
+
+    navigate('/dashboard')
+    onSelectItem(itemId)
   }
 
   return (
@@ -107,7 +108,6 @@ export default function HomeSidebar({ activeItem, onSelectItem }) {
 
       <Nav aria-label="Navegacao principal">
         {NAV_ITEMS.map((item) => {
-          // Only show admin button if user is admin
           if (item.id === 'admin' && !isAdmin) return null
 
           const Icon = item.icon

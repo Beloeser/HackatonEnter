@@ -3,8 +3,8 @@ import styled from 'styled-components'
 import { Shield, User, Home } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { id: 'home', label: 'Home', icon: Home },
   { id: 'admin', label: 'Dashboard', icon: Shield },
+  { id: 'home', label: 'Home', icon: Home },
 ]
 
 const Sidebar = styled.aside`

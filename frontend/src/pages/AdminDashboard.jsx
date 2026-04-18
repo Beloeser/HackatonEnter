@@ -4,14 +4,12 @@ import styled from 'styled-components'
 import {
   getDashboardAnalytics,
   getCaseComparisons,
-  getLawyerPerformance,
 } from '../services/api'
 import AdminSidebar from './admin/components/AdminSidebar'
 import AdminTopbar from './admin/components/AdminTopbar'
 import AnalyticsCards from './admin/components/AnalyticsCards'
 import CaseComparisonTable from './admin/components/CaseComparisonTable'
 import DecisionDistributionChart from './admin/components/DecisionDistributionChart'
-import LawyerPerformanceTable from './admin/components/LawyerPerformanceTable'
 
 const DashboardContainer = styled.div`
   display: grid;
@@ -109,7 +107,6 @@ const ErrorContainer = styled.div`
 function AdminDashboard() {
   const [analyticsData, setAnalyticsData] = useState(null)
   const [comparisonsData, setComparisonsData] = useState(null)
-  const [lawyerPerformanceData, setLawyerPerformanceData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -119,15 +116,13 @@ function AdminDashboard() {
         setLoading(true)
         setError(null)
 
-        const [analytics, comparisons, performance] = await Promise.all([
+        const [analytics, comparisons] = await Promise.all([
           getDashboardAnalytics(),
           getCaseComparisons(),
-          getLawyerPerformance(),
         ])
 
         setAnalyticsData(analytics.data)
         setComparisonsData(comparisons.data)
-        setLawyerPerformanceData(performance.data || [])
       } catch (err) {
         console.error('Error fetching dashboard data:', err)
         setError('Erro ao carregar dados do dashboard. Tente novamente.')
@@ -183,10 +178,6 @@ function AdminDashboard() {
               </ChartsGrid>
             </>
           )}
-
-          <SectionTitle>Desempenho por Advogado</SectionTitle>
-          <SectionDescription>Ranking considerando apenas casos com decisao comparavel.</SectionDescription>
-          <LawyerPerformanceTable data={lawyerPerformanceData} />
 
           {comparisonsData && (
             <>
